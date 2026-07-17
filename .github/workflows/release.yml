@@ -44,7 +44,7 @@ jobs:
           install_root="$(mktemp -d)"
           npm install --global \
             --prefix "$install_root" \
-            release/strapivo-cli-*.tgz
+            ./release/strapivo-cli-*.tgz
 
           "$install_root/bin/strapivo" version
           "$install_root/bin/strapivo" usage
