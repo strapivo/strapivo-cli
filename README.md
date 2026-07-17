@@ -42,7 +42,7 @@ Config lives at `~/.config/strapivo/config.json`:
 
 ```json
 {
-  "base_url": "https://app.strapivo.com",
+  "base_url": "https://strapivo.app",
   "api_token": "replace-with-token"
 }
 ```
@@ -50,7 +50,7 @@ Config lives at `~/.config/strapivo/config.json`:
 Set it without putting the token in shell history:
 
 ```sh
-strapivo config set --base-url https://app.strapivo.com
+strapivo config set --base-url https://strapivo.app
 printf '%s' "$STRAPIVO_API_TOKEN" | strapivo config set --token-stdin
 strapivo config
 ```
