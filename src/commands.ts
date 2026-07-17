@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { parseArgs } from "node:util";
 import type { Readable, Writable } from "node:stream";
 import { ApiClient } from "./api.js";
@@ -12,6 +13,7 @@ import {
 import { CliError, ExitCode } from "./errors.js";
 import { readJsonInput } from "./input.js";
 import { writeJson } from "./output.js";
+import { installSkill, validateSkillHost } from "./skill.js";
 import { commandUsage, packageVersion, rootUsage } from "./usage.js";
 import {
   identifier,
@@ -25,6 +27,7 @@ export interface CommandContext {
   stderr: Writable;
   environment: NodeJS.ProcessEnv;
   configPath: string;
+  homeDirectory: string;
   fetchImpl: typeof globalThis.fetch;
 }
 
@@ -35,6 +38,7 @@ export function defaultCommandContext(): CommandContext {
     stderr: process.stderr,
     environment: process.env,
     configPath: configFilePath(),
+    homeDirectory: homedir(),
     fetchImpl: globalThis.fetch,
   };
 }
@@ -76,6 +80,11 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
 
   if (domain === "config") {
     await runConfig(action, rest, context);
+    return;
+  }
+
+  if (domain === "skill") {
+    await runSkill(action, rest, context);
     return;
   }
 
@@ -166,6 +175,22 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
 
   throw new CliError("unknown_command", `Unknown command '${[domain, action].filter(Boolean).join(" ")}'`, ExitCode.usage, {
     details: { instruction: "Run 'strapivo usage'" },
+  });
+}
+
+async function runSkill(action: string | undefined, rest: string[], context: CommandContext): Promise<void> {
+  if (action !== "install") {
+    throw new CliError("unknown_command", `Unknown command 'skill${action === undefined ? "" : ` ${action}`}'`, ExitCode.usage, {
+      details: { instruction: "Run 'strapivo skill usage'" },
+    });
+  }
+
+  const values = argumentsFor(rest, { host: { type: "string" } });
+  const host = validateSkillHost(values.host ?? "all");
+  const installed = await installSkill({ host, homeDirectory: context.homeDirectory });
+  writeJson(context.stdout, {
+    installed,
+    instruction: "Restart your agent if the Strapivo skill is not detected in the current session.",
   });
 }
 

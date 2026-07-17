@@ -80,6 +80,22 @@ test("config set reads token from stdin and config show redacts it", async (t) =
   assert.equal((await stat(path)).mode & 0o777, 0o600);
 });
 
+test("skill install writes personal Codex and Claude Code skills", async (t) => {
+  const home = await mkdtemp(join(tmpdir(), "strapivo-cli-home-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+
+  const result = spawnSync(process.execPath, [cliPath, "skill", "install", "--host", "all"], {
+    encoding: "utf8",
+    env: cleanEnvironment(home),
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout) as { installed: Array<{ host: string; path: string }> };
+  assert.deepEqual(output.installed.map((entry) => entry.host), ["codex", "claude"]);
+  await stat(join(home, ".agents", "skills", "strapivo", "SKILL.md"));
+  await stat(join(home, ".claude", "skills", "strapivo", "SKILL.md"));
+});
+
 test("invalid command arguments are reported before missing config", async (t) => {
   const home = await mkdtemp(join(tmpdir(), "strapivo-cli-home-"));
   t.after(() => rm(home, { recursive: true, force: true }));

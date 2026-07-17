@@ -20,7 +20,7 @@ Use `strapivo` as deterministic transport into Strapivo Strategic Memory. Curren
 
 React to CLI output; do not pre-run checks every turn.
 
-- Command missing: tell user `strapivo` is unavailable. Offer `npm install -g @strapivo/cli`; never install silently.
+- Command missing: tell user `strapivo` is unavailable. With explicit permission and Strapivo GitHub access, install from the private repository using the README flow: `gh auth setup-git`, then `npm install -g git+https://github.com/strapivo/strapivo-cli.git`. Never install silently, use sudo, or expose credentials.
 - Config error: run `strapivo config` to inspect redacted effective config. User configures it with `strapivo config set --base-url URL` and token piped to `strapivo config set --token-stdin`. If config JSON is invalid, ask before `strapivo config reset`, then reconfigure it. Never ask user to place token in command arguments or chat.
 - Never print, inspect, summarize, or transmit `~/.config/strapivo/config.json` directly. `strapivo config` is safe and redacted.
 
