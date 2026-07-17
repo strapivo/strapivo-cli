@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify tag matches package version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "$GITHUB_REF_NAME" = "v$version" || {
+            echo "Tag $GITHUB_REF_NAME does not match package version $version"
+            exit 1
+          }
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+
+      - name: Build release artifact
+        run: |
+          mkdir release
+          npm pack --pack-destination release
+          cd release
+          shasum -a 256 strapivo-cli-*.tgz > "strapivo-cli-${GITHUB_REF_NAME#v}.tgz.sha256"
+
+      - name: Verify packaged CLI
+        run: |
+          install_root="$(mktemp -d)"
+          npm install --global \
+            --prefix "$install_root" \
+            release/strapivo-cli-*.tgz
+
+          "$install_root/bin/strapivo" version
+          "$install_root/bin/strapivo" usage
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release/strapivo-cli-*.tgz \
+            release/strapivo-cli-*.tgz.sha256 \
+            --verify-tag \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME"

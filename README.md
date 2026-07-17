@@ -11,7 +11,7 @@ Install or update the Strapivo Strategic Memory integration for me. You are expl
 
 1. Verify Node.js >=22, npm, and the GitHub CLI (`gh`) are available. Never use sudo. If a prerequisite is missing, stop and tell me exactly what I need to install.
 2. Run `gh auth status`, then confirm access with `gh repo view strapivo/strapivo-cli`. If authentication or repository access fails, stop and tell me; never display or request a GitHub token in chat.
-3. Install from the private repository without changing my Git credential configuration: create a temporary directory; clone `strapivo/strapivo-cli` there with `gh repo clone ... -- --depth 1`; run `npm ci` in the clone; run `npm pack --pack-destination <temporary-directory>`; globally install the resulting `.tgz` with `npm install -g <tarball>`; then remove the temporary directory. Keep every temporary path safely quoted.
+3. Install the latest packaged release without changing my Git credential configuration: create a temporary directory; use `gh release download --repo strapivo/strapivo-cli` to download both `strapivo-cli-*.tgz` and `strapivo-cli-*.tgz.sha256` into it; verify the checksum from inside the temporary directory with `shasum -a 256 -c strapivo-cli-*.tgz.sha256`; globally install the `.tgz` with `npm install -g`; then remove the temporary directory. Keep every temporary path safely quoted. If downloading or checksum verification fails, stop and tell me.
 4. Run `strapivo skill install --host all` to install the bundled skill into the personal Codex and Claude Code skill directories.
 5. Verify with `strapivo version`, `strapivo usage`, and confirm both installed skill paths exist.
 6. Report what was installed and whether I need to restart my agent for skill discovery.
