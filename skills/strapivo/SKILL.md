@@ -20,7 +20,7 @@ Use `strapivo` as deterministic transport into Strapivo Strategic Memory. Curren
 
 React to CLI output; do not pre-run checks every turn.
 
-- Command missing: tell user `strapivo` is unavailable. With explicit permission and Strapivo GitHub access, follow the README's private-repository clone, pack, and install flow. Never install silently, change Git credential configuration, use sudo, or expose credentials.
+- Command missing: tell user `strapivo` is unavailable. With explicit permission, install the public package using the README's npm flow. Never install silently, use sudo, or expose credentials.
 - Config error: run `strapivo config` to inspect redacted effective config. User configures it with `strapivo config set --base-url URL` and token piped to `strapivo config set --token-stdin`. If config JSON is invalid, ask before `strapivo config reset`, then reconfigure it. Never ask user to place token in command arguments or chat.
 - Never print, inspect, summarize, or transmit `~/.config/strapivo/config.json` directly. `strapivo config` is safe and redacted.
 
@@ -51,13 +51,13 @@ Before updating:
 
 Create requests have no idempotency key. Never retry a create automatically after timeout, connection loss, or uncertain response. Read and reconcile first to avoid duplicates.
 
-New Business Model Elements become `ai_drafted` and `proposed`. Updates preserve existing lifecycle state and directly change existing content, including accepted content. Perform direct updates only when user's request clearly authorizes that change.
+New Business Model Elements become `ai_drafted` and `proposed`. Updates preserve existing lifecycle state and directly change existing content, including accepted content. Rejection and archival are explicit lifecycle writes. Perform updates, rejection, or archival only when the user's request clearly authorizes that change.
 
 Return operation, resource ID, status when present, and concise review handoff after writes.
 
 ## Current limits
 
-No approval, rejection, archival, deletion, token management, bulk sync, or idempotent create operations. Do not use browser routes, HTML actions, or undocumented endpoints to bypass these limits.
+No approval, general deletion, token management, bulk sync, or idempotent create operations. Do not use browser routes, HTML actions, or undocumented endpoints to bypass these limits.
 
 ## Errors
 

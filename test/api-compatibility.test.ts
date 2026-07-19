@@ -19,7 +19,7 @@ test("API compatibility check rejects breaking schema changes", async (t) => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /BREAKING:/);
-  assert.match(result.stderr, /breaking OpenAPI change/);
+  assert.match(result.stderr, /incompatible OpenAPI change/);
 });
 
 test("API compatibility check rejects missing CLI operations", async (t) => {

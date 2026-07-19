@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import { apiCompare } from "api-smart-diff";
 import { parse } from "yaml";
 
 const packagePath = fileURLToPath(new URL("../package.json", import.meta.url));
@@ -16,9 +16,6 @@ if (typeof supportedContract !== "string") {
 
 const baselinePath = fileURLToPath(new URL("../contract/strapivo-openapi.yaml", import.meta.url));
 const candidatePath = resolve(process.argv[2] ?? baselinePath);
-const diffTool = fileURLToPath(
-  new URL("../node_modules/@pb33f/openapi-changes/bin/openapi-changes.js", import.meta.url),
-);
 
 const requiredOperations = [
   ["GET", "/workspaces.json", "listWorkspaces"],
@@ -51,6 +48,7 @@ function documentAt(path) {
   return document;
 }
 
+const baseline = documentAt(baselinePath);
 const candidate = documentAt(candidatePath);
 const contractVersion = candidate.info?.version;
 if (typeof contractVersion !== "string") fail("candidate info.version is missing");
@@ -71,31 +69,22 @@ for (const [method, path, operationId] of requiredOperations) {
   }
 }
 
-const diff = spawnSync(
-  process.execPath,
-  [diffTool, "report", "--reproducible", baselinePath, candidatePath],
-  { encoding: "utf8" },
-);
-if (diff.status !== 0) {
-  fail(`OpenAPI diff tool failed${diff.stderr.trim() === "" ? "" : `: ${diff.stderr.trim()}`}`);
-}
-
-let report;
+let changes;
 try {
-  report = JSON.parse(diff.stdout);
-} catch {
-  fail("OpenAPI diff tool returned invalid JSON");
+  changes = apiCompare(baseline, candidate).diffs;
+} catch (error) {
+  fail(`OpenAPI diff failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
-const changes = Array.isArray(report.changes) ? report.changes : [];
-const breaking = changes.filter((change) => change?.breaking === true);
-if (breaking.length > 0) {
-  for (const change of breaking) {
-    console.error(`BREAKING: ${change.path ?? "unknown path"}: ${change.changeText ?? "changed"} ${change.property ?? ""}`.trim());
+const incompatible = changes.filter(({ type }) => type === "breaking" || type === "unclassified");
+if (incompatible.length > 0) {
+  for (const change of incompatible) {
+    const path = Array.isArray(change.path) ? change.path.join(".") : "unknown path";
+    console.error(`${change.type.toUpperCase()}: ${path}: ${change.description ?? change.action}`);
   }
-  fail(`${breaking.length} breaking OpenAPI change${breaking.length === 1 ? "" : "s"}`);
+  fail(`${incompatible.length} incompatible OpenAPI change${incompatible.length === 1 ? "" : "s"}`);
 }
 
 console.log(
-  `API ${contractVersion} compatible with CLI contract ${supportedContract}: ${requiredOperations.length} operations checked, ${changes.length} non-breaking change${changes.length === 1 ? "" : "s"}`,
+  `API ${contractVersion} compatible with CLI contract ${supportedContract}: ${requiredOperations.length} operations checked, ${changes.length} compatible change${changes.length === 1 ? "" : "s"}`,
 );
