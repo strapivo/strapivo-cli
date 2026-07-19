@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/strapivo-logo.svg" alt="Strapivo" width="480">
+</p>
+
 # Strapivo CLI
 
 Machine-first CLI for giving external agents deterministic access to Strapivo Strategic Memory. V1 exposes Workspaces, Business Models, and Business Model Elements through Strapivo's current JSON API.
