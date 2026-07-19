@@ -14,6 +14,9 @@
   "engines": {
     "node": ">=22"
   },
+  "strapivo": {
+    "apiContract": "1.1"
+  },
   "bin": {
     "strapivo": "dist/src/cli.js"
   },
@@ -23,6 +26,7 @@
     "README.md"
   ],
   "scripts": {
+    "api:check": "node scripts/check-api-compatibility.mjs",
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist",
@@ -30,7 +34,9 @@
     "prepare": "npm run clean && npm run build"
   },
   "devDependencies": {
+    "@pb33f/openapi-changes": "0.2.7",
     "@types/node": "^24.0.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "yaml": "2.8.3"
   }
 }

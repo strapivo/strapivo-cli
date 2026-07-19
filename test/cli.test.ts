@@ -25,6 +25,14 @@ test("CLI usage is JSON on stdout", () => {
   assert.equal(output.protocol.prompts, false);
 });
 
+test("CLI version declares supported API contract", () => {
+  const result = spawnSync(process.execPath, [cliPath, "version"], { encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout) as { api_contract: string };
+  assert.equal(output.api_contract, "1.1");
+});
+
 test("Business Model Element usage exposes lifecycle commands", () => {
   const result = spawnSync(process.execPath, [cliPath, "business-model-element", "usage"], {
     encoding: "utf8",

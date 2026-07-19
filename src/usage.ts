@@ -125,12 +125,25 @@ export function commandUsage(name: string): unknown {
 }
 
 export function packageVersion(): string {
+  const version = packageMetadata().version;
+  return typeof version === "string" ? version : "unknown";
+}
+
+export function apiContractVersion(): string {
+  const apiContract = packageMetadata().strapivo?.apiContract;
+  return typeof apiContract === "string" ? apiContract : "unknown";
+}
+
+function packageMetadata(): {
+  version?: unknown;
+  strapivo?: { apiContract?: unknown };
+} {
   try {
-    const packageJson = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
+    return JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
       version?: unknown;
+      strapivo?: { apiContract?: unknown };
     };
-    return typeof packageJson.version === "string" ? packageJson.version : "unknown";
   } catch {
-    return "unknown";
+    return {};
   }
 }

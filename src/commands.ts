@@ -14,7 +14,7 @@ import { CliError, ExitCode } from "./errors.js";
 import { readJsonInput } from "./input.js";
 import { writeJson } from "./output.js";
 import { installSkill, validateSkillHost } from "./skill.js";
-import { commandUsage, packageVersion, rootUsage } from "./usage.js";
+import { apiContractVersion, commandUsage, packageVersion, rootUsage } from "./usage.js";
 import {
   identifier,
   validateBusinessModelElementArchiveInput,
@@ -332,6 +332,7 @@ function versionOutput(): Record<string, unknown> {
   return {
     name: "@strapivo/cli",
     version: packageVersion(),
+    api_contract: apiContractVersion(),
     node: process.version,
   };
 }

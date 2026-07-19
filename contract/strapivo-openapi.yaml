@@ -1,0 +1,864 @@
+openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+info:
+  title: Strapivo JSON API
+  version: 1.1.0
+  description: |
+    Machine-readable wire contract for Strapivo's external bearer-authenticated JSON API.
+    Routes are shared with the browser application and are not namespaced under `/api`.
+
+    Workspace-scoped resources are always resolved through the workspace selected by
+    `workspace_slug`. Resources outside that workspace are not exposed by resource lookups.
+servers:
+  - url: https://strapivo.example
+    description: Example deployment; clients use the URL of their Strapivo installation.
+security:
+  - bearerAuth: []
+tags:
+  - name: Workspaces
+  - name: Business Models
+  - name: Business Model Elements
+paths:
+  /workspaces.json:
+    get:
+      operationId: listWorkspaces
+      summary: List accessible workspaces
+      description: |
+        Lists the workspaces belonging to the user identified by the bearer token.
+        Use each workspace's `path` or opaque `business_models_url` for subsequent requests.
+      tags: [Workspaces]
+      responses:
+        "200":
+          description: Workspaces available to the authenticated user, ordered by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Workspace"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /{workspace_slug}/business_models.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+    get:
+      operationId: listBusinessModels
+      summary: List business models
+      description: Lists business models in the selected workspace, most recently updated first.
+      tags: [Business Models]
+      responses:
+        "200":
+          description: Business Model directory entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BusinessModelDirectoryEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createBusinessModel
+      summary: Create a business model
+      description: |
+        Creates a Business Model in the selected workspace. This operation is not
+        idempotent and does not support idempotency keys. Clients must not automatically
+        retry it after an ambiguous network failure.
+      tags: [Business Models]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelCreateRequest"
+      responses:
+        "201":
+          description: Business Model created.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelDocument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+    get:
+      operationId: getBusinessModel
+      summary: Read a business model
+      description: Returns the complete current Business Model document with all nine Canvas blocks.
+      tags: [Business Models]
+      responses:
+        "200":
+          description: Complete Business Model document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelDocument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateBusinessModel
+      summary: Update a business model
+      description: |
+        Updates mutable Business Model metadata. `lock_version` must come from the latest
+        read. A stale version returns `409`; read the resource again before retrying.
+        Omitted nullable metadata is treated as null by the current implementation, so
+        clients should send the complete mutable metadata set.
+      tags: [Business Models]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelUpdateRequest"
+      responses:
+        "200":
+          description: Updated complete Business Model document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelDocument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}/elements.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+    post:
+      operationId: createBusinessModelElement
+      summary: Create a business model element
+      description: |
+        Creates either a top-level Canvas element or a supported child beneath a top-level
+        Customer Segment or Value Proposition. Creates are not idempotent and must omit
+        `lock_version`. New elements are created with `proposed` status.
+      tags: [Business Model Elements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelElementCreateRequest"
+      responses:
+        "201":
+          description: Business Model Element created.
+          headers:
+            Location:
+              $ref: "#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelElementDocument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}/elements/{element_id}.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+      - $ref: "#/components/parameters/ElementId"
+    get:
+      operationId: getBusinessModelElement
+      summary: Read a business model element
+      description: |
+        Returns a current element and its unarchived children grouped by child type.
+        Archived elements are outside this current projection and return `404`.
+      tags: [Business Model Elements]
+      responses:
+        "200":
+          description: Complete Business Model Element document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelElementDocument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateBusinessModelElement
+      summary: Update a business model element
+      description: |
+        Updates an element's title and details using optimistic locking. The block must
+        identify the element's existing block. Elements cannot be moved, reparented, or
+        retyped. `parent_id` and `child_type`, when present, may only be null; non-null
+        relationship changes return `422`.
+      tags: [Business Model Elements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelElementUpdateRequest"
+      responses:
+        "200":
+          description: Updated complete Business Model Element document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelElementDocument"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}/elements/{element_id}/archival.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+      - $ref: "#/components/parameters/ElementId"
+    post:
+      operationId: archiveBusinessModelElement
+      summary: Archive an accepted business model element
+      description: |
+        Archives an accepted element using optimistic locking. Archiving preserves the
+        element and its relationships as historical memory while removing it from current
+        Business Model documents. Accepted children are archived with their parent. The
+        archive reason is optional. Proposed elements must be rejected instead.
+      tags: [Business Model Elements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelElementArchivalRequest"
+      responses:
+        "204":
+          description: Element archived. The response has no body.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}/elements/{element_id}/rejection.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+      - $ref: "#/components/parameters/ElementId"
+    delete:
+      operationId: rejectBusinessModelElement
+      summary: Reject a proposed business model element
+      description: |
+        Permanently deletes a proposed element using optimistic locking. Rejection is for
+        proposals that never became accepted business knowledge. Accepted elements cannot
+        be rejected and must be archived instead.
+      tags: [Business Model Elements]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelElementRejectionRequest"
+      responses:
+        "204":
+          description: Proposal rejected and permanently deleted. The response has no body.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Strapivo personal access token
+      description: |
+        User-created personal access token. Workspace authorization is derived from the
+        owning user's memberships. Tokens have no narrower scopes in V1.
+
+  parameters:
+    WorkspaceSlug:
+      name: workspace_slug
+      in: path
+      required: true
+      description: Slug selecting the workspace security boundary.
+      schema:
+        type: string
+        minLength: 1
+    BusinessModelId:
+      name: business_model_id
+      in: path
+      required: true
+      description: |
+        Opaque Business Model path identifier. Use the `id` returned by the API or the
+        canonical path returned in `Location`; do not infer its storage format.
+      schema:
+        type: string
+        minLength: 1
+    ElementId:
+      name: element_id
+      in: path
+      required: true
+      description: Opaque Business Model Element identifier.
+      schema:
+        type: string
+        minLength: 1
+
+  headers:
+    Location:
+      description: Absolute URL of the newly created resource.
+      required: true
+      schema:
+        type: string
+        format: uri
+    WwwAuthenticate:
+      description: Bearer authentication challenge.
+      required: true
+      schema:
+        type: string
+        const: 'Bearer realm="Strapivo"'
+
+  responses:
+    BadRequest:
+      description: Request parameters or JSON syntax are malformed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: Bearer credentials are missing, malformed, or invalid.
+      headers:
+        WWW-Authenticate:
+          $ref: "#/components/headers/WwwAuthenticate"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Forbidden:
+      description: The authenticated user is not a member of the selected workspace.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: The scoped resource is missing or inaccessible.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Conflict:
+      description: The supplied optimistic-lock version is stale. The error is retryable after rereading.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    UnprocessableEntity:
+      description: Validation failed or the requested mutation violates the resource contract.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, retryable]
+      properties:
+        code:
+          type: string
+          enum:
+            - invalid_json
+            - invalid_mutation
+            - invalid_request
+            - invalid_transition
+            - lock_version_not_allowed
+            - lock_version_required
+            - not_found
+            - stale_object
+            - unauthorized
+            - forbidden
+            - validation_failed
+          description: Stable machine-readable error code used by the contracted operations.
+        message:
+          type: string
+          minLength: 1
+          description: Human-readable explanation.
+        retryable:
+          type: boolean
+          description: Whether rereading or retrying can safely resolve this specific failure.
+        details:
+          type: object
+          description: Validation messages keyed by input or model attribute.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    Workspace:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, path, role, business_models_url]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Opaque workspace identifier; clients must not infer its storage format.
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+          minLength: 1
+        path:
+          type: string
+          pattern: ^/
+          description: Workspace path prefix for workspace-scoped routes.
+        role:
+          type: string
+          enum: [owner, admin, member]
+        business_models_url:
+          type: string
+          format: uri
+          description: Opaque absolute link to this workspace's Business Model directory.
+
+    BusinessModelDirectoryEntry:
+      type: object
+      additionalProperties: false
+      required: [id, name, updated_at]
+      properties:
+        id:
+          $ref: "#/components/schemas/BusinessModelId"
+        name:
+          type: string
+          minLength: 1
+        updated_at:
+          type: string
+          format: date-time
+
+    BusinessModelDocument:
+      type: object
+      additionalProperties: false
+      required: [id, name, url, context_notes, lock_version, blocks]
+      properties:
+        id:
+          $ref: "#/components/schemas/BusinessModelId"
+        name:
+          type: string
+          minLength: 1
+        url:
+          type: [string, "null"]
+          description: Primary Business Model URL, or null when absent.
+        context_notes:
+          type: [string, "null"]
+          description: Supporting context notes, or null when absent.
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        blocks:
+          $ref: "#/components/schemas/BusinessModelBlocks"
+
+    BusinessModelBlocks:
+      type: object
+      additionalProperties: false
+      required:
+        - customer_segments
+        - value_propositions
+        - channels
+        - customer_relationships
+        - revenue_streams
+        - key_resources
+        - key_activities
+        - key_partners
+        - cost_structure
+      properties:
+        customer_segments:
+          $ref: "#/components/schemas/CanvasBlock"
+        value_propositions:
+          $ref: "#/components/schemas/CanvasBlock"
+        channels:
+          $ref: "#/components/schemas/CanvasBlock"
+        customer_relationships:
+          $ref: "#/components/schemas/CanvasBlock"
+        revenue_streams:
+          $ref: "#/components/schemas/CanvasBlock"
+        key_resources:
+          $ref: "#/components/schemas/CanvasBlock"
+        key_activities:
+          $ref: "#/components/schemas/CanvasBlock"
+        key_partners:
+          $ref: "#/components/schemas/CanvasBlock"
+        cost_structure:
+          $ref: "#/components/schemas/CanvasBlock"
+
+    CanvasBlock:
+      type: array
+      items:
+        $ref: "#/components/schemas/BusinessModelCanvasElement"
+
+    BusinessModelCanvasElement:
+      type: object
+      additionalProperties: false
+      required: [id, title, details, status]
+      properties:
+        id:
+          $ref: "#/components/schemas/ElementId"
+        title:
+          type: string
+          minLength: 1
+        details:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/CurrentElementStatus"
+
+    BusinessModelElementDocument:
+      type: object
+      additionalProperties: false
+      required: [id, title, details, status, lock_version, children]
+      properties:
+        id:
+          $ref: "#/components/schemas/ElementId"
+        title:
+          type: string
+          minLength: 1
+        details:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/CurrentElementStatus"
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        children:
+          $ref: "#/components/schemas/BusinessModelElementChildren"
+
+    BusinessModelElementChildren:
+      type: object
+      additionalProperties: false
+      description: |
+        Unarchived children grouped by child type. Only groups with children are present.
+        Customer Segments may contain `jobs`, `pains`, and `gains`. Value Propositions may
+        contain `product_services`, `pain_relievers`, and `gain_creators`.
+      properties:
+        jobs:
+          $ref: "#/components/schemas/ElementChildren"
+        pains:
+          $ref: "#/components/schemas/ElementChildren"
+        gains:
+          $ref: "#/components/schemas/ElementChildren"
+        product_services:
+          $ref: "#/components/schemas/ElementChildren"
+        pain_relievers:
+          $ref: "#/components/schemas/ElementChildren"
+        gain_creators:
+          $ref: "#/components/schemas/ElementChildren"
+
+    ElementChildren:
+      type: array
+      items:
+        $ref: "#/components/schemas/BusinessModelElementChild"
+
+    BusinessModelElementChild:
+      type: object
+      additionalProperties: false
+      required: [id, title, details, status, lock_version]
+      properties:
+        id:
+          $ref: "#/components/schemas/ElementId"
+        title:
+          type: string
+          minLength: 1
+        details:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/CurrentElementStatus"
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+
+    BusinessModelCreateRequest:
+      description: Flat payload or the same payload wrapped under `business_model`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelCreatePayload"
+        - type: object
+          required: [business_model]
+          properties:
+            business_model:
+              $ref: "#/components/schemas/BusinessModelCreatePayload"
+
+    BusinessModelCreatePayload:
+      type: object
+      required: [name]
+      not:
+        required: [business_model]
+      properties:
+        name:
+          type: string
+          description: Required by domain validation; blank values return `422`.
+        url:
+          type: [string, "null"]
+        context_notes:
+          type: [string, "null"]
+
+    BusinessModelUpdateRequest:
+      description: Flat payload or the same payload wrapped under `business_model`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelUpdatePayload"
+        - type: object
+          required: [business_model]
+          properties:
+            business_model:
+              $ref: "#/components/schemas/BusinessModelUpdatePayload"
+
+    BusinessModelUpdatePayload:
+      type: object
+      required: [lock_version, name]
+      not:
+        required: [business_model]
+      properties:
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        name:
+          type: string
+          description: Required by domain validation; blank values return `422`.
+        url:
+          type: [string, "null"]
+        context_notes:
+          type: [string, "null"]
+
+    BusinessModelElementCreateRequest:
+      description: Flat payload or the same payload wrapped under `element`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelElementCreatePayload"
+        - type: object
+          required: [element]
+          properties:
+            element:
+              $ref: "#/components/schemas/BusinessModelElementCreatePayload"
+
+    BusinessModelElementCreatePayload:
+      description: |
+        A top-level element, a Customer Segment child, or a Value Proposition child.
+        `lock_version` is not accepted on creates.
+      not:
+        anyOf:
+          - required: [element]
+          - required: [lock_version]
+      oneOf:
+        - $ref: "#/components/schemas/TopLevelElementCreatePayload"
+        - $ref: "#/components/schemas/CustomerSegmentChildCreatePayload"
+        - $ref: "#/components/schemas/ValuePropositionChildCreatePayload"
+
+    TopLevelElementCreatePayload:
+      type: object
+      required: [block, title]
+      properties:
+        block:
+          $ref: "#/components/schemas/CanvasBlockName"
+        parent_id:
+          type: "null"
+          description: May be omitted or explicitly null for a top-level element.
+        child_type:
+          type: "null"
+          description: May be omitted or explicitly null for a top-level element.
+        title:
+          type: string
+        details:
+          type: [string, "null"]
+
+    CustomerSegmentChildCreatePayload:
+      type: object
+      required: [block, parent_id, child_type, title]
+      properties:
+        block:
+          type: string
+          const: customer_segments
+        parent_id:
+          $ref: "#/components/schemas/ElementId"
+        child_type:
+          type: string
+          enum: [job, pain, gain]
+        title:
+          type: string
+        details:
+          type: [string, "null"]
+
+    ValuePropositionChildCreatePayload:
+      type: object
+      required: [block, parent_id, child_type, title]
+      properties:
+        block:
+          type: string
+          const: value_propositions
+        parent_id:
+          $ref: "#/components/schemas/ElementId"
+        child_type:
+          type: string
+          enum: [product_service, pain_reliever, gain_creator]
+        title:
+          type: string
+        details:
+          type: [string, "null"]
+
+    BusinessModelElementUpdateRequest:
+      description: Flat payload or the same payload wrapped under `element`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelElementUpdatePayload"
+        - type: object
+          required: [element]
+          properties:
+            element:
+              $ref: "#/components/schemas/BusinessModelElementUpdatePayload"
+
+    BusinessModelElementUpdatePayload:
+      type: object
+      required: [block, lock_version, title]
+      not:
+        required: [element]
+      properties:
+        block:
+          $ref: "#/components/schemas/CanvasBlockName"
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        title:
+          type: string
+        details:
+          type: [string, "null"]
+        parent_id:
+          type: "null"
+          description: Relationship changes are immutable; when supplied this must be null.
+        child_type:
+          type: "null"
+          description: Type changes are immutable; when supplied this must be null.
+
+    BusinessModelElementArchivalRequest:
+      description: Flat payload or the same payload wrapped under `archival`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelElementArchivalPayload"
+        - type: object
+          required: [archival]
+          properties:
+            archival:
+              $ref: "#/components/schemas/BusinessModelElementArchivalPayload"
+
+    BusinessModelElementArchivalPayload:
+      type: object
+      required: [lock_version]
+      not:
+        required: [archival]
+      properties:
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        archive_reason:
+          type: [string, "null"]
+          description: Optional explanation preserved with the archived element.
+
+    BusinessModelElementRejectionRequest:
+      description: Flat payload or the same payload wrapped under `rejection`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelElementRejectionPayload"
+        - type: object
+          required: [rejection]
+          properties:
+            rejection:
+              $ref: "#/components/schemas/BusinessModelElementRejectionPayload"
+
+    BusinessModelElementRejectionPayload:
+      type: object
+      required: [lock_version]
+      not:
+        required: [rejection]
+      properties:
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+
+    CanvasBlockName:
+      type: string
+      enum:
+        - customer_segments
+        - value_propositions
+        - channels
+        - customer_relationships
+        - revenue_streams
+        - key_resources
+        - key_activities
+        - key_partners
+        - cost_structure
+
+    CurrentElementStatus:
+      type: string
+      enum: [proposed, accepted]
+      description: Archived elements are excluded from current documents.
+
+    LockVersion:
+      type: integer
+      minimum: 0
+      description: Optimistic-lock version from the latest successful read.
+
+    BusinessModelId:
+      type: string
+      minLength: 1
+      description: Opaque public Business Model identifier.
+
+    ElementId:
+      type: string
+      minLength: 1
+      description: Opaque Business Model Element identifier.
