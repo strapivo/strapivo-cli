@@ -118,9 +118,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          prerelease=()
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease+=(--prerelease); fi
+
           gh release create "$GITHUB_REF_NAME" \
             "${{ needs.build.outputs.artifact }}" \
             "${{ needs.build.outputs.checksum }}" \
             --verify-tag \
             --generate-notes \
-            --title "$GITHUB_REF_NAME"
+            --title "$GITHUB_REF_NAME" \
+            "${prerelease[@]}"
