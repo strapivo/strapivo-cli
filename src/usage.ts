@@ -53,7 +53,7 @@ const commands = {
     },
   },
   "business-model-element": {
-    description: "Read or write one Business Model Element",
+    description: "Read, write, archive, or reject one Business Model Element",
     commands: {
       read: {
         usage:
@@ -73,6 +73,25 @@ const commands = {
           lock_version: "non-negative integer|null; latest read version for updates",
           title: "complete non-empty string",
           details: "complete string",
+        },
+      },
+      archive: {
+        usage: "strapivo business-model-element archive --workspace SLUG --input FILE|-",
+        description: "Archive an accepted element; accepted children are archived with their parent",
+        input: {
+          business_model_id: "Business Model ID",
+          element_id: "accepted Business Model Element ID",
+          lock_version: "non-negative integer; latest read version",
+          archive_reason: "string|null; optional reason, represented explicitly",
+        },
+      },
+      reject: {
+        usage: "strapivo business-model-element reject --workspace SLUG --input FILE|-",
+        description: "Permanently delete a proposed element that was never accepted",
+        input: {
+          business_model_id: "Business Model ID",
+          element_id: "proposed Business Model Element ID",
+          lock_version: "non-negative integer; latest read version",
         },
       },
     },

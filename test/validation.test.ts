@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CliError } from "../src/errors.js";
 import {
+  validateBusinessModelElementArchiveInput,
+  validateBusinessModelElementRejectInput,
   validateBusinessModelElementWriteInput,
   validateBusinessModelWriteInput,
 } from "../src/validation.js";
@@ -105,5 +107,56 @@ test("Business Model Element updates reject parent and child type", () => {
         details: "Complete details",
       }),
     /must be null or omitted when updating/,
+  );
+});
+
+test("Business Model Element archive requires complete lifecycle input", () => {
+  const input = validateBusinessModelElementArchiveInput({
+    business_model_id: "model-id",
+    element_id: "element-id",
+    lock_version: 3,
+    archive_reason: null,
+  });
+  assert.equal(input.archive_reason, null);
+
+  rejectsInput(
+    () =>
+      validateBusinessModelElementArchiveInput({
+        business_model_id: "model-id",
+        element_id: "element-id",
+        lock_version: 3,
+      }),
+    /missing required fields/,
+  );
+
+  rejectsInput(
+    () =>
+      validateBusinessModelElementArchiveInput({
+        business_model_id: "model-id",
+        element_id: "element-id",
+        lock_version: -1,
+        archive_reason: "Superseded",
+      }),
+    /non-negative integer/,
+  );
+});
+
+test("Business Model Element rejection accepts only identifiers and lock version", () => {
+  const input = validateBusinessModelElementRejectInput({
+    business_model_id: "model-id",
+    element_id: "element-id",
+    lock_version: 2,
+  });
+  assert.equal(input.lock_version, 2);
+
+  rejectsInput(
+    () =>
+      validateBusinessModelElementRejectInput({
+        business_model_id: "model-id",
+        element_id: "element-id",
+        lock_version: 2,
+        reason: "No longer relevant",
+      }),
+    /unsupported fields/,
   );
 });

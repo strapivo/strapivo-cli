@@ -25,6 +25,17 @@ test("CLI usage is JSON on stdout", () => {
   assert.equal(output.protocol.prompts, false);
 });
 
+test("Business Model Element usage exposes lifecycle commands", () => {
+  const result = spawnSync(process.execPath, [cliPath, "business-model-element", "usage"], {
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout) as { commands: Record<string, unknown> };
+  assert.ok(output.commands.archive);
+  assert.ok(output.commands.reject);
+});
+
 test("CLI failures are structured JSON on stderr", async (t) => {
   const home = await mkdtemp(join(tmpdir(), "strapivo-cli-home-"));
   t.after(() => rm(home, { recursive: true, force: true }));

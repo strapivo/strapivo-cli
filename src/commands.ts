@@ -17,6 +17,8 @@ import { installSkill, validateSkillHost } from "./skill.js";
 import { commandUsage, packageVersion, rootUsage } from "./usage.js";
 import {
   identifier,
+  validateBusinessModelElementArchiveInput,
+  validateBusinessModelElementRejectInput,
   validateBusinessModelElementWriteInput,
   validateBusinessModelWriteInput,
 } from "./validation.js";
@@ -92,7 +94,8 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     (domain === "workspaces" && action === "list") ||
     (domain === "business-models" && action === "list") ||
     (domain === "business-model" && (action === "read" || action === "write")) ||
-    (domain === "business-model-element" && (action === "read" || action === "write"));
+    (domain === "business-model-element" &&
+      (action === "read" || action === "write" || action === "archive" || action === "reject"));
   if (!knownApiCommand) {
     throw new CliError("unknown_command", `Unknown command '${[domain, action].filter(Boolean).join(" ")}'`, ExitCode.usage, {
       details: { instruction: "Run 'strapivo usage'" },
@@ -170,6 +173,32 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     const input = validateBusinessModelElementWriteInput(await readJsonInput(inputPath, context.stdin));
     const api = await apiClient(context);
     writeJson(context.stdout, await api.writeBusinessModelElement(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-element" && action === "archive") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelElementArchiveInput(await readJsonInput(inputPath, context.stdin));
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.archiveBusinessModelElement(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-element" && action === "reject") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelElementRejectInput(await readJsonInput(inputPath, context.stdin));
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.rejectBusinessModelElement(workspace, input));
     return;
   }
 

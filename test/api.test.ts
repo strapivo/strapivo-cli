@@ -139,6 +139,60 @@ test("Business Model Element update sends only supported update fields", async (
   });
 });
 
+test("Business Model Element archive sends lifecycle payload and accepts 204", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return new Response(null, { status: 204 });
+  });
+
+  const result = await client.archiveBusinessModelElement("acme", {
+    business_model_id: "model/id",
+    element_id: "element/id",
+    lock_version: 3,
+    archive_reason: "Superseded",
+  });
+
+  assert.deepEqual(result, {
+    operation: "archived",
+    business_model_id: "model/id",
+    element_id: "element/id",
+  });
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model%2Fid/elements/element%2Fid/archival.json",
+  );
+  assert.equal(requests[1]?.method, "POST");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), {
+    lock_version: 3,
+    archive_reason: "Superseded",
+  });
+});
+
+test("Business Model Element reject sends DELETE body and accepts 204", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return new Response(null, { status: 204 });
+  });
+
+  const result = await client.rejectBusinessModelElement("acme", {
+    business_model_id: "model-id",
+    element_id: "element-id",
+    lock_version: 2,
+  });
+
+  assert.deepEqual(result, {
+    operation: "rejected",
+    business_model_id: "model-id",
+    element_id: "element-id",
+  });
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model-id/elements/element-id/rejection.json",
+  );
+  assert.equal(requests[1]?.method, "DELETE");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), { lock_version: 2 });
+});
+
 test("API conflict preserves stable server error and conflict exit code", async () => {
   const { client } = clientWith((request) => {
     if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);

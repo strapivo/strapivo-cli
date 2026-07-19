@@ -1,5 +1,7 @@
 import { CliError, ExitCode } from "./errors.js";
 import type {
+  BusinessModelElementArchiveInput,
+  BusinessModelElementRejectInput,
   BusinessModelElementWriteInput,
   BusinessModelWriteInput,
 } from "./validation.js";
@@ -139,6 +141,41 @@ export class ApiClient {
     };
   }
 
+  async archiveBusinessModelElement(
+    workspaceSlug: string,
+    input: BusinessModelElementArchiveInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const url = elementLifecycleUrl(modelUrl, input.element_id, "archival");
+    await this.request(
+      "POST",
+      url,
+      { lock_version: input.lock_version, archive_reason: input.archive_reason },
+      { allowEmptySuccess: true },
+    );
+    return {
+      operation: "archived",
+      business_model_id: input.business_model_id,
+      element_id: input.element_id,
+    };
+  }
+
+  async rejectBusinessModelElement(
+    workspaceSlug: string,
+    input: BusinessModelElementRejectInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const url = elementLifecycleUrl(modelUrl, input.element_id, "rejection");
+    await this.request("DELETE", url, { lock_version: input.lock_version }, { allowEmptySuccess: true });
+    return {
+      operation: "rejected",
+      business_model_id: input.business_model_id,
+      element_id: input.element_id,
+    };
+  }
+
   private async resolveWorkspace(slug: string): Promise<WorkspaceDocument> {
     const workspaces = await this.listWorkspaces();
     const workspace = workspaces.find((candidate) => candidate.slug === slug);
@@ -170,7 +207,12 @@ export class ApiClient {
     }
   }
 
-  private async request(method: string, url: URL, body?: Record<string, unknown>): Promise<unknown> {
+  private async request(
+    method: string,
+    url: URL,
+    body?: Record<string, unknown>,
+    options: { allowEmptySuccess?: boolean } = {},
+  ): Promise<unknown> {
     this.assertSameOrigin(url);
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -232,7 +274,7 @@ export class ApiClient {
         { retryable: true, cause: error },
       );
     }
-    const parsed = parseResponseBody(text, response.ok);
+    const parsed = parseResponseBody(text, response.ok, options.allowEmptySuccess === true);
 
     if (!response.ok) throw apiError(response.status, parsed);
     return parsed;
@@ -273,9 +315,15 @@ function elementMemberUrl(businessModelUrl: URL, elementId: string): URL {
   return memberUrl(elementsCollectionUrl(businessModelUrl), elementId);
 }
 
-function parseResponseBody(text: string, successful: boolean): unknown {
+function elementLifecycleUrl(businessModelUrl: URL, elementId: string, lifecycle: "archival" | "rejection"): URL {
+  const url = elementMemberUrl(businessModelUrl, elementId);
+  url.pathname = `${url.pathname.slice(0, -5)}/${lifecycle}.json`;
+  return url;
+}
+
+function parseResponseBody(text: string, successful: boolean, allowEmptySuccess = false): unknown {
   if (text.trim() === "") {
-    if (successful) throw incompatible("Strapivo returned an empty success response");
+    if (successful && !allowEmptySuccess) throw incompatible("Strapivo returned an empty success response");
     return null;
   }
 

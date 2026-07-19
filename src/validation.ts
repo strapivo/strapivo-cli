@@ -38,6 +38,19 @@ export interface BusinessModelElementWriteInput {
   details: string;
 }
 
+export interface BusinessModelElementArchiveInput {
+  business_model_id: string;
+  element_id: string;
+  lock_version: number;
+  archive_reason: string | null;
+}
+
+export interface BusinessModelElementRejectInput {
+  business_model_id: string;
+  element_id: string;
+  lock_version: number;
+}
+
 export function validateBusinessModelWriteInput(value: Record<string, unknown>): BusinessModelWriteInput {
   assertOnlyKeys(value, ["business_model_id", "lock_version", "name", "url", "context_notes"]);
   assertKeysPresent(value, ["business_model_id", "lock_version", "name", "url", "context_notes"]);
@@ -128,6 +141,33 @@ export function validateBusinessModelElementWriteInput(
   };
 }
 
+export function validateBusinessModelElementArchiveInput(
+  value: Record<string, unknown>,
+): BusinessModelElementArchiveInput {
+  assertOnlyKeys(value, ["business_model_id", "element_id", "lock_version", "archive_reason"]);
+  assertKeysPresent(value, ["business_model_id", "element_id", "lock_version", "archive_reason"]);
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    element_id: identifier(value.element_id, "element_id"),
+    lock_version: lockVersion(value.lock_version),
+    archive_reason: nullableString(value.archive_reason, "archive_reason"),
+  };
+}
+
+export function validateBusinessModelElementRejectInput(
+  value: Record<string, unknown>,
+): BusinessModelElementRejectInput {
+  assertOnlyKeys(value, ["business_model_id", "element_id", "lock_version"]);
+  assertKeysPresent(value, ["business_model_id", "element_id", "lock_version"]);
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    element_id: identifier(value.element_id, "element_id"),
+    lock_version: lockVersion(value.lock_version),
+  };
+}
+
 export function identifier(value: unknown, field: string): string {
   return requiredString(value, field, { allowEmpty: false });
 }
@@ -143,8 +183,12 @@ function nullableString(value: unknown, field: string): string | null {
 
 function nullableLockVersion(value: unknown): number | null {
   if (value === null) return null;
+  return lockVersion(value);
+}
+
+function lockVersion(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw inputError("lock_version must be a non-negative integer or null");
+    throw inputError("lock_version must be a non-negative integer");
   }
   return value;
 }
