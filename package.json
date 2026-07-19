@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "description": "Machine-first CLI for Strapivo Strategic Memory",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/strapivo/strapivo-cli.git"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "engines": {
     "node": ">=22"
