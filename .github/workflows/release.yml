@@ -96,7 +96,7 @@ jobs:
 
       - name: Publish tested artifact to npm
         run: >-
-          npm publish "${{ needs.build.outputs.artifact }}"
+          npm publish "./${{ needs.build.outputs.artifact }}"
           --access public
           --tag "${{ needs.build.outputs.dist_tag }}"
 
