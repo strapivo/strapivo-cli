@@ -19,8 +19,8 @@ const commands = {
     description: "Install the bundled Strapivo skill for supported agents",
     commands: {
       install: {
-        usage: "strapivo skill install [--host codex|claude|all]",
-        description: "Install personal skill for Codex, Claude Code, or both; default all",
+        usage: "strapivo skill install [--host agents|codex|claude|all]",
+        description: "Install personal skill for agents-compatible hosts, Codex, Claude Code, or all; default all",
       },
     },
   },

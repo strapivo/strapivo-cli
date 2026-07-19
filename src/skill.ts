@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { CliError, ExitCode } from "./errors.js";
 
-export type SkillHost = "codex" | "claude" | "all";
+export type SkillHost = "agents" | "codex" | "claude" | "all";
 
 export interface InstalledSkill {
   host: Exclude<SkillHost, "all">;
@@ -58,15 +58,17 @@ export async function installSkill(options: {
 }
 
 export function validateSkillHost(value: unknown): SkillHost {
-  if (value === "codex" || value === "claude" || value === "all") return value;
-  throw new CliError("invalid_arguments", "--host must be codex, claude, or all", ExitCode.usage, {
-    details: { supported_hosts: ["codex", "claude", "all"] },
+  if (value === "agents" || value === "codex" || value === "claude" || value === "all") return value;
+  throw new CliError("invalid_arguments", "--host must be agents, codex, claude, or all", ExitCode.usage, {
+    details: { supported_hosts: ["agents", "codex", "claude", "all"] },
   });
 }
 
 function skillTargets(host: SkillHost, homeDirectory: string): InstalledSkill[] {
   const targets: InstalledSkill[] = [];
-  if (host === "codex" || host === "all") {
+  if (host === "agents") {
+    targets.push({ host: "agents", path: join(homeDirectory, ".agents", "skills", "strapivo") });
+  } else if (host === "codex" || host === "all") {
     targets.push({ host: "codex", path: join(homeDirectory, ".agents", "skills", "strapivo") });
   }
   if (host === "claude" || host === "all") {

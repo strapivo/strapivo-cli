@@ -30,6 +30,22 @@ test("skill installer installs and updates Codex and Claude Code personal skills
   assert.equal(await readFile(join(installed[1]!.path, "SKILL.md"), "utf8"), "version two\n");
 });
 
+test("agents host installs to the shared agents skill directory", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "strapivo-skill-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const home = join(root, "home");
+  const source = join(root, "source");
+  await mkdir(source, { recursive: true });
+  await writeFile(join(source, "SKILL.md"), "managed\n", "utf8");
+
+  const installed = await installSkill({ host: "agents", homeDirectory: home, sourceDirectory: source });
+
+  assert.deepEqual(installed, [
+    { host: "agents", path: join(home, ".agents", "skills", "strapivo") },
+  ]);
+  assert.equal(await readFile(join(installed[0]!.path, "SKILL.md"), "utf8"), "managed\n");
+});
+
 test("skill installer refuses to overwrite an unmanaged skill", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "strapivo-skill-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -65,7 +81,8 @@ test("all-host installation stages every host before changing either target", as
   await assert.rejects(access(join(home, ".agents", "skills", "strapivo")));
 });
 
-test("skill host validation rejects unknown agents", () => {
+test("skill host validation accepts agents alias and rejects unknown hosts", () => {
+  assert.equal(validateSkillHost("agents"), "agents");
   assert.throws(
     () => validateSkillHost("other"),
     (error: unknown) => error instanceof CliError && error.code === "invalid_arguments",

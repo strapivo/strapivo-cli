@@ -99,6 +99,21 @@ test("config set reads token from stdin and config show redacts it", async (t) =
   assert.equal((await stat(path)).mode & 0o777, 0o600);
 });
 
+test("skill install accepts agents host alias", async (t) => {
+  const home = await mkdtemp(join(tmpdir(), "strapivo-cli-home-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+
+  const result = spawnSync(process.execPath, [cliPath, "skill", "install", "--host", "agents"], {
+    encoding: "utf8",
+    env: { ...process.env, HOME: home },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout) as { installed: Array<{ host: string }> };
+  assert.deepEqual(output.installed.map((entry) => entry.host), ["agents"]);
+  await stat(join(home, ".agents", "skills", "strapivo", "SKILL.md"));
+});
+
 test("skill install writes personal Codex and Claude Code skills", async (t) => {
   const home = await mkdtemp(join(tmpdir(), "strapivo-cli-home-"));
   t.after(() => rm(home, { recursive: true, force: true }));
