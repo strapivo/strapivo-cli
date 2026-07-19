@@ -2,24 +2,36 @@
 
 Machine-first CLI for giving external agents deterministic access to Strapivo Strategic Memory. V1 exposes Workspaces, Business Models, and Business Model Elements through Strapivo's current JSON API.
 
-## Install with Codex or Claude Code
+## Install
 
-Copy this prompt into your agent. It authorizes installation but not access to secrets:
+Node.js 22 or newer is required. Install the public npm package, install its bundled skill for your agent, then verify the CLI:
 
-```text
-Install or update the Strapivo Strategic Memory integration for me. You are explicitly authorized to run shell commands, install the user-level CLI, and install/update the personal Strapivo skill for Codex and Claude Code. Do the installation; do not only tell me which commands to run.
-
-1. Verify Node.js >=22, npm, and the GitHub CLI (`gh`) are available. Never use sudo. If a prerequisite is missing, stop and tell me exactly what I need to install.
-2. Run `gh auth status`, then confirm access with `gh repo view strapivo/strapivo-cli`. If authentication or repository access fails, stop and tell me; never display or request a GitHub token in chat.
-3. Install the latest packaged release without changing my Git credential configuration: create a temporary directory; use `gh release download --repo strapivo/strapivo-cli` to download both `strapivo-cli-*.tgz` and `strapivo-cli-*.tgz.sha256` into it; verify the checksum from inside the temporary directory with `shasum -a 256 -c strapivo-cli-*.tgz.sha256`; globally install the `.tgz` with `npm install -g`; then remove the temporary directory. Keep every temporary path safely quoted. If downloading or checksum verification fails, stop and tell me.
-4. Run `strapivo skill install --host all` to install the bundled skill into the personal Codex and Claude Code skill directories.
-5. Verify with `strapivo version`, `strapivo usage`, and confirm both installed skill paths exist.
-6. Report what was installed and whether I need to restart my agent for skill discovery.
-
-Do not configure Strapivo API credentials, ask me to paste an API token into chat, or read `~/.config/strapivo/config.json`. I will configure access separately.
+```sh
+npm install -g @strapivo/cli@latest
+strapivo skill install --host agents
+strapivo version
+strapivo usage
 ```
 
-Repository is private. User must belong to Strapivo GitHub organization or otherwise have repository access.
+`--host agents` installs to `~/.agents/skills/strapivo` for agents-compatible hosts. Use `--host claude` for Claude Code or `--host all` for both destinations.
+
+Updating uses the same flow and refreshes the managed skill:
+
+```sh
+npm install -g @strapivo/cli@latest
+strapivo skill install --host agents
+strapivo version
+```
+
+Never use `sudo`. If npm reports a permissions error, fix the user-level npm prefix instead of escalating privileges.
+
+### Install with a coding agent
+
+Copy this prompt into your current agent:
+
+```text
+Install or update @strapivo/cli from public npm, install its bundled Strapivo skill for this coding agent, and verify it. You are authorized to run the required shell commands and perform a user-level global npm installation. Require Node.js >=22, never use sudo, choose the explicit skill host matching this agent, and stop with an actionable error if installation fails. Run strapivo version and strapivo usage after installation. Do not configure, inspect, request, or print Strapivo API credentials.
+```
 
 ## Requirements
 
