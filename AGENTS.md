@@ -25,6 +25,20 @@ Use domain glossary terms exactly: **Workspace**, **Business Model**, **Business
 
 Node 22 or newer is required. Develop against current Node 24 LTS when possible.
 
+## API compatibility validation
+
+When the sibling Strapivo server repository is available, validate its canonical contract with:
+
+```sh
+npm run api:check -- ../strapivo/docs/api/openapi.yaml
+```
+
+Run this before accepting server API changes or releasing the CLI.
+
+This check validates OpenAPI compatibility only; it does not test a deployed server. After deployment, smoke-test the exact CLI release against staging using a disposable Workspace. Exercise authentication, reads, writes, Business Model Element archive/reject, optimistic-lock conflicts, and inaccessible Workspace errors.
+
+Never expose API tokens in commands, logs, test fixtures, or committed files.
+
 ## Client invariants
 
 - JSON success output goes to stdout. Structured errors go to stderr.
