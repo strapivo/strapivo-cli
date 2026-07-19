@@ -30,6 +30,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist",
+    "package:smoke": "node scripts/smoke-package.mjs",
     "test": "npm run clean && npm run build && node --test dist/test/*.test.js",
     "prepare": "npm run clean && npm run build"
   },

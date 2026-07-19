@@ -5,20 +5,25 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      artifact: ${{ steps.package.outputs.artifact }}
+      checksum: ${{ steps.package.outputs.checksum }}
+      dist_tag: ${{ steps.package.outputs.dist_tag }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24
-          cache: npm
+          node-version: 24.18.0
+          package-manager-cache: false
 
       - name: Verify tag matches package version
         run: |
@@ -34,29 +39,88 @@ jobs:
       - run: npm test
 
       - name: Build release artifact
+        id: package
         run: |
+          version="$(node -p "require('./package.json').version")"
+          artifact="release/strapivo-cli-$version.tgz"
+          checksum="$artifact.sha256"
+          dist_tag="latest"
+          if [[ "$version" == *-* ]]; then dist_tag="next"; fi
+
           mkdir release
           npm pack --pack-destination release
-          cd release
-          shasum -a 256 strapivo-cli-*.tgz > "strapivo-cli-${GITHUB_REF_NAME#v}.tgz.sha256"
+          test -f "$artifact"
+          (cd release && sha256sum "$(basename "$artifact")" > "$(basename "$checksum")")
 
-      - name: Verify packaged CLI
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$dist_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Verify packaged CLI and bundled skills
+        run: npm run package:smoke -- "${{ steps.package.outputs.artifact }}"
+
+      - name: Preserve tested release artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-package
+          path: |
+            ${{ steps.package.outputs.artifact }}
+            ${{ steps.package.outputs.checksum }}
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Restore tested release artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-package
+          path: release
+
+      - name: Verify release artifact checksum
         run: |
-          install_root="$(mktemp -d)"
-          npm install --global \
-            --prefix "$install_root" \
-            ./release/strapivo-cli-*.tgz
+          cd release
+          sha256sum --check "$(basename "${{ needs.build.outputs.checksum }}")"
 
-          "$install_root/bin/strapivo" version
-          "$install_root/bin/strapivo" usage
+      - name: Publish tested artifact to npm
+        run: >-
+          npm publish "${{ needs.build.outputs.artifact }}"
+          --access public
+          --tag "${{ needs.build.outputs.dist_tag }}"
 
-      - name: Create GitHub release
+  github-release:
+    needs: [build, publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Restore tested release artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-package
+          path: release
+
+      - name: Create GitHub release from tested artifact
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            release/strapivo-cli-*.tgz \
-            release/strapivo-cli-*.tgz.sha256 \
+            "${{ needs.build.outputs.artifact }}" \
+            "${{ needs.build.outputs.checksum }}" \
             --verify-tag \
             --generate-notes \
             --title "$GITHUB_REF_NAME"
