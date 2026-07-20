@@ -4,11 +4,43 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions: {}
 
 jobs:
+  remove-legacy-npm-tag:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.18.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Remove legacy next tag
+        shell: bash
+        run: |
+          oidc_response="$(curl --fail --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org")"
+          oidc_token="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).value)' "$oidc_response")"
+          exchange_response="$(curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $oidc_token" \
+            https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40strapivo%2Fcli)"
+          npm_token="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).token)' "$exchange_response")"
+          echo "::add-mask::$npm_token"
+          npm dist-tag rm @strapivo/cli next \
+            --//registry.npmjs.org/:_authToken="$npm_token"
+
   build:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
