@@ -62,6 +62,41 @@ test("Workspace listing sends bearer auth and JSON accept header", async () => {
   assert.equal(requests[0]?.headers.get("user-agent"), "test-client");
 });
 
+test("Business Model read preserves streams from the complete document", async () => {
+  const businessModel = {
+    id: "model-id",
+    name: "Acme Italy",
+    url: null,
+    context_notes: null,
+    lock_version: 3,
+    blocks: {},
+    streams: [
+      {
+        id: "01900000-0000-7000-8000-000000000002",
+        name: "Enterprise motion",
+        details: "Strategic elements for enterprise growth",
+        color: "blue",
+        position: 1,
+        lock_version: 2,
+        members: [
+          {
+            element_id: "element-id",
+            block: "customer_segments",
+            title: "Enterprise buyers",
+            status: "accepted",
+          },
+        ],
+      },
+    ],
+  };
+  const { client } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(businessModel);
+  });
+
+  assert.deepEqual(await client.readBusinessModel("acme", "model-id"), businessModel);
+});
+
 test("Business Model write resolves Workspace link and emits tool-shaped result", async () => {
   const { client, requests } = clientWith((request) => {
     if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
@@ -73,6 +108,7 @@ test("Business Model write resolves Workspace link and emits tool-shaped result"
         context_notes: "Context",
         lock_version: 0,
         blocks: {},
+        streams: [],
       },
       201,
     );

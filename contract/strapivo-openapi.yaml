@@ -501,7 +501,7 @@ components:
     BusinessModelDocument:
       type: object
       additionalProperties: false
-      required: [id, name, url, context_notes, lock_version, blocks]
+      required: [id, name, url, context_notes, lock_version, blocks, streams]
       properties:
         id:
           $ref: "#/components/schemas/BusinessModelId"
@@ -518,6 +518,51 @@ components:
           $ref: "#/components/schemas/LockVersion"
         blocks:
           $ref: "#/components/schemas/BusinessModelBlocks"
+        streams:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessModelStream"
+
+    BusinessModelStream:
+      type: object
+      additionalProperties: false
+      required: [id, name, details, color, position, lock_version, members]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        details:
+          type: [string, "null"]
+        color:
+          type: string
+          enum: [yellow, blue, red, green, rose, purple, orange, cyan, indigo]
+        position:
+          type: integer
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessModelStreamMember"
+
+    BusinessModelStreamMember:
+      type: object
+      additionalProperties: false
+      required: [element_id, block, title, status]
+      properties:
+        element_id:
+          $ref: "#/components/schemas/ElementId"
+        block:
+          type: string
+          enum: [customer_segments, value_propositions, channels, customer_relationships, revenue_streams, key_resources, key_activities, key_partners, cost_structure]
+        title:
+          type: string
+          minLength: 1
+        status:
+          $ref: "#/components/schemas/CurrentElementStatus"
 
     BusinessModelBlocks:
       type: object
