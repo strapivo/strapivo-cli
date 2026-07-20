@@ -36,8 +36,7 @@ jobs:
             https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40strapivo%2Fcli)"
           npm_token="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).token)' "$exchange_response")"
           echo "::add-mask::$npm_token"
-          npm dist-tag rm @strapivo/cli next \
-            --//registry.npmjs.org/:_authToken="$npm_token"
+          NODE_AUTH_TOKEN="$npm_token" npm dist-tag rm @strapivo/cli next
 
   build:
     if: github.event_name == 'push'
