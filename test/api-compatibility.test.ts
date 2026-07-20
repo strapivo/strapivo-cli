@@ -34,3 +34,22 @@ test("API compatibility check rejects missing CLI operations", async (t) => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /must use operationId 'listWorkspaces'/);
 });
+
+test("API compatibility check requires Stream mutation operations", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "strapivo-api-check-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const candidatePath = join(directory, "missing-stream-operation.yaml");
+  const contract = await readFile(contractPath, "utf8");
+  await writeFile(
+    candidatePath,
+    contract.replace(
+      "operationId: addBusinessModelStreamMembership",
+      "operationId: renamedBusinessModelStreamMembership",
+    ),
+  );
+
+  const result = spawnSync(process.execPath, [checkerPath.pathname, candidatePath], { encoding: "utf8" });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /must use operationId 'addBusinessModelStreamMembership'/);
+});

@@ -14,6 +14,25 @@ export const BUSINESS_MODEL_BLOCKS = [
 
 export type BusinessModelBlock = (typeof BUSINESS_MODEL_BLOCKS)[number];
 
+export const BUSINESS_MODEL_STREAM_COLORS = [
+  "yellow",
+  "blue",
+  "red",
+  "green",
+  "rose",
+  "purple",
+  "orange",
+  "cyan",
+  "indigo",
+] as const;
+
+export type BusinessModelStreamColor = (typeof BUSINESS_MODEL_STREAM_COLORS)[number];
+
+export const BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS = ["add", "remove"] as const;
+
+export type BusinessModelStreamMembershipOperation =
+  (typeof BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS)[number];
+
 export const CHILD_TYPES_BY_BLOCK = {
   customer_segments: ["job", "pain", "gain"],
   value_propositions: ["product_service", "pain_reliever", "gain_creator"],
@@ -49,6 +68,24 @@ export interface BusinessModelElementRejectInput {
   business_model_id: string;
   element_id: string;
   lock_version: number;
+}
+
+export interface BusinessModelStreamWriteInput {
+  business_model_id: string;
+  stream_id: string | null;
+  lock_version: number | null;
+  name: string;
+  details: string | null;
+  color: BusinessModelStreamColor;
+  position: number;
+}
+
+export interface BusinessModelStreamMembershipWriteInput {
+  business_model_id: string;
+  stream_id: string;
+  stream_lock_version: number;
+  element_id: string;
+  operation: BusinessModelStreamMembershipOperation;
 }
 
 export function validateBusinessModelWriteInput(value: Record<string, unknown>): BusinessModelWriteInput {
@@ -168,6 +205,76 @@ export function validateBusinessModelElementRejectInput(
   };
 }
 
+export function validateBusinessModelStreamWriteInput(
+  value: Record<string, unknown>,
+): BusinessModelStreamWriteInput {
+  assertOnlyKeys(value, [
+    "business_model_id",
+    "stream_id",
+    "lock_version",
+    "name",
+    "details",
+    "color",
+    "position",
+  ]);
+  assertKeysPresent(value, [
+    "business_model_id",
+    "stream_id",
+    "lock_version",
+    "name",
+    "details",
+    "color",
+    "position",
+  ]);
+
+  const streamId = nullableIdentifier(value.stream_id, "stream_id");
+  const lockVersion = nullableLockVersion(value.lock_version);
+  if ((streamId === null) !== (lockVersion === null)) {
+    throw inputError(
+      streamId === null
+        ? "lock_version must be null when creating a Business Model Stream"
+        : "lock_version is required when updating a Business Model Stream",
+    );
+  }
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    stream_id: streamId,
+    lock_version: lockVersion,
+    name: requiredString(value.name, "name", { allowEmpty: false }),
+    details: nullableString(value.details, "details"),
+    color: businessModelStreamColor(value.color),
+    position: integer(value.position, "position"),
+  };
+}
+
+export function validateBusinessModelStreamMembershipWriteInput(
+  value: Record<string, unknown>,
+): BusinessModelStreamMembershipWriteInput {
+  assertOnlyKeys(value, [
+    "business_model_id",
+    "stream_id",
+    "stream_lock_version",
+    "element_id",
+    "operation",
+  ]);
+  assertKeysPresent(value, [
+    "business_model_id",
+    "stream_id",
+    "stream_lock_version",
+    "element_id",
+    "operation",
+  ]);
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    stream_id: identifier(value.stream_id, "stream_id"),
+    stream_lock_version: lockVersion(value.stream_lock_version),
+    element_id: identifier(value.element_id, "element_id"),
+    operation: businessModelStreamMembershipOperation(value.operation),
+  };
+}
+
 export function identifier(value: unknown, field: string): string {
   return requiredString(value, field, { allowEmpty: false });
 }
@@ -191,6 +298,41 @@ function lockVersion(value: unknown): number {
     throw inputError("lock_version must be a non-negative integer");
   }
   return value;
+}
+
+function integer(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw inputError(`${field} must be an integer`);
+  }
+  return value;
+}
+
+function businessModelStreamColor(value: unknown): BusinessModelStreamColor {
+  if (
+    typeof value !== "string" ||
+    !BUSINESS_MODEL_STREAM_COLORS.includes(value as BusinessModelStreamColor)
+  ) {
+    throw inputError("color must be a supported Business Model Stream color", {
+      supported_colors: BUSINESS_MODEL_STREAM_COLORS,
+    });
+  }
+  return value as BusinessModelStreamColor;
+}
+
+function businessModelStreamMembershipOperation(
+  value: unknown,
+): BusinessModelStreamMembershipOperation {
+  if (
+    typeof value !== "string" ||
+    !BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS.includes(
+      value as BusinessModelStreamMembershipOperation,
+    )
+  ) {
+    throw inputError("operation must be 'add' or 'remove'", {
+      supported_operations: BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS,
+    });
+  }
+  return value as BusinessModelStreamMembershipOperation;
 }
 
 function businessModelBlock(value: unknown): BusinessModelBlock {

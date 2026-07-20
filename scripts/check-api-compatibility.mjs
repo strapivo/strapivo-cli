@@ -28,6 +28,10 @@ const requiredOperations = [
   ["PATCH", "/{workspace_slug}/business_models/{business_model_id}/elements/{element_id}.json", "updateBusinessModelElement"],
   ["POST", "/{workspace_slug}/business_models/{business_model_id}/elements/{element_id}/archival.json", "archiveBusinessModelElement"],
   ["DELETE", "/{workspace_slug}/business_models/{business_model_id}/elements/{element_id}/rejection.json", "rejectBusinessModelElement"],
+  ["POST", "/{workspace_slug}/business_models/{business_model_id}/streams.json", "createBusinessModelStream"],
+  ["PATCH", "/{workspace_slug}/business_models/{business_model_id}/streams/{stream_id}.json", "updateBusinessModelStream"],
+  ["POST", "/{workspace_slug}/business_models/{business_model_id}/streams/{stream_id}/memberships.json", "addBusinessModelStreamMembership"],
+  ["DELETE", "/{workspace_slug}/business_models/{business_model_id}/streams/{stream_id}/memberships/{element_id}.json", "removeBusinessModelStreamMembership"],
 ];
 
 function fail(message) {

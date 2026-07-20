@@ -20,6 +20,8 @@ import {
   validateBusinessModelElementArchiveInput,
   validateBusinessModelElementRejectInput,
   validateBusinessModelElementWriteInput,
+  validateBusinessModelStreamMembershipWriteInput,
+  validateBusinessModelStreamWriteInput,
   validateBusinessModelWriteInput,
 } from "./validation.js";
 
@@ -95,7 +97,9 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     (domain === "business-models" && action === "list") ||
     (domain === "business-model" && (action === "read" || action === "write")) ||
     (domain === "business-model-element" &&
-      (action === "read" || action === "write" || action === "archive" || action === "reject"));
+      (action === "read" || action === "write" || action === "archive" || action === "reject")) ||
+    (domain === "business-model-stream" && action === "write") ||
+    (domain === "business-model-stream-membership" && action === "write");
   if (!knownApiCommand) {
     throw new CliError("unknown_command", `Unknown command '${[domain, action].filter(Boolean).join(" ")}'`, ExitCode.usage, {
       details: { instruction: "Run 'strapivo usage'" },
@@ -199,6 +203,34 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     const input = validateBusinessModelElementRejectInput(await readJsonInput(inputPath, context.stdin));
     const api = await apiClient(context);
     writeJson(context.stdout, await api.rejectBusinessModelElement(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-stream" && action === "write") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelStreamWriteInput(await readJsonInput(inputPath, context.stdin));
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.writeBusinessModelStream(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-stream-membership" && action === "write") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelStreamMembershipWriteInput(
+      await readJsonInput(inputPath, context.stdin),
+    );
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.writeBusinessModelStreamMembership(workspace, input));
     return;
   }
 

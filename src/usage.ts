@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { CliError, ExitCode } from "./errors.js";
-import { BUSINESS_MODEL_BLOCKS, CHILD_TYPES_BY_BLOCK } from "./validation.js";
+import {
+  BUSINESS_MODEL_BLOCKS,
+  BUSINESS_MODEL_STREAM_COLORS,
+  BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS,
+  CHILD_TYPES_BY_BLOCK,
+} from "./validation.js";
 
 const commands = {
   config: {
@@ -92,6 +97,38 @@ const commands = {
           business_model_id: "Business Model ID",
           element_id: "proposed Business Model Element ID",
           lock_version: "non-negative integer; latest read version",
+        },
+      },
+    },
+  },
+  "business-model-stream": {
+    description: "Create or update one Business Model Stream",
+    commands: {
+      write: {
+        usage: "strapivo business-model-stream write --workspace SLUG --input FILE|-",
+        input: {
+          business_model_id: "Business Model ID",
+          stream_id: "string|null; null creates, string updates",
+          lock_version: "non-negative integer|null; latest Stream version for updates",
+          name: "complete non-empty string",
+          details: "complete string|null",
+          color: BUSINESS_MODEL_STREAM_COLORS,
+          position: "complete integer display position",
+        },
+      },
+    },
+  },
+  "business-model-stream-membership": {
+    description: "Add or remove one Business Model Element from a Business Model Stream",
+    commands: {
+      write: {
+        usage: "strapivo business-model-stream-membership write --workspace SLUG --input FILE|-",
+        input: {
+          business_model_id: "Business Model ID",
+          stream_id: "Business Model Stream ID",
+          stream_lock_version: "non-negative integer; latest Stream version",
+          element_id: "top-level Business Model Element ID",
+          operation: BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS,
         },
       },
     },

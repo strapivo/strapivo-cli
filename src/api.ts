@@ -3,6 +3,8 @@ import type {
   BusinessModelElementArchiveInput,
   BusinessModelElementRejectInput,
   BusinessModelElementWriteInput,
+  BusinessModelStreamMembershipWriteInput,
+  BusinessModelStreamWriteInput,
   BusinessModelWriteInput,
 } from "./validation.js";
 
@@ -176,6 +178,53 @@ export class ApiClient {
     };
   }
 
+  async writeBusinessModelStream(
+    workspaceSlug: string,
+    input: BusinessModelStreamWriteInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const collectionUrl = streamsCollectionUrl(modelUrl);
+    const streamId = input.stream_id;
+    const creating = streamId === null;
+    const response = streamId === null
+      ? await this.request("POST", collectionUrl, {
+          name: input.name,
+          details: input.details,
+          color: input.color,
+          position: input.position,
+        })
+      : await this.request("PATCH", memberUrl(collectionUrl, streamId), {
+          lock_version: input.lock_version,
+          name: input.name,
+          details: input.details,
+          color: input.color,
+          position: input.position,
+        });
+
+    return streamWriteResult(response, creating ? "created" : "updated");
+  }
+
+  async writeBusinessModelStreamMembership(
+    workspaceSlug: string,
+    input: BusinessModelStreamMembershipWriteInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const streamUrl = memberUrl(streamsCollectionUrl(modelUrl), input.stream_id);
+    const collectionUrl = streamMembershipsCollectionUrl(streamUrl);
+    const response = input.operation === "add"
+      ? await this.request("POST", collectionUrl, {
+          lock_version: input.stream_lock_version,
+          element_id: input.element_id,
+        })
+      : await this.request("DELETE", memberUrl(collectionUrl, input.element_id), {
+          lock_version: input.stream_lock_version,
+        });
+
+    return streamWriteResult(response, input.operation);
+  }
+
   private async resolveWorkspace(slug: string): Promise<WorkspaceDocument> {
     const workspaces = await this.listWorkspaces();
     const workspace = workspaces.find((candidate) => candidate.slug === slug);
@@ -315,6 +364,23 @@ function elementMemberUrl(businessModelUrl: URL, elementId: string): URL {
   return memberUrl(elementsCollectionUrl(businessModelUrl), elementId);
 }
 
+function streamsCollectionUrl(businessModelUrl: URL): URL {
+  return nestedCollectionUrl(businessModelUrl, "streams");
+}
+
+function streamMembershipsCollectionUrl(streamUrl: URL): URL {
+  return nestedCollectionUrl(streamUrl, "memberships");
+}
+
+function nestedCollectionUrl(parentUrl: URL, collection: string): URL {
+  const url = new URL(parentUrl);
+  const parentPath = url.pathname.endsWith(".json") ? url.pathname.slice(0, -5) : url.pathname.replace(/\/$/, "");
+  url.pathname = `${parentPath}/${collection}.json`;
+  url.search = "";
+  url.hash = "";
+  return url;
+}
+
 function elementLifecycleUrl(businessModelUrl: URL, elementId: string, lifecycle: "archival" | "rejection"): URL {
   const url = elementMemberUrl(businessModelUrl, elementId);
   url.pathname = `${url.pathname.slice(0, -5)}/${lifecycle}.json`;
@@ -400,6 +466,20 @@ function requiredResponseField(document: Record<string, unknown>, field: string)
 function nullableResponseField(document: Record<string, unknown>, field: string): unknown {
   if (!Object.hasOwn(document, field)) throw incompatible(`Response is missing field '${field}'`);
   return document[field];
+}
+
+function streamWriteResult(response: unknown, operation: string): Record<string, unknown> {
+  const document = responseRecord(response, "Business Model Stream write response");
+  return {
+    operation,
+    id: requiredResponseField(document, "id"),
+    name: requiredResponseField(document, "name"),
+    details: requiredResponseField(document, "details"),
+    color: requiredResponseField(document, "color"),
+    position: requiredResponseField(document, "position"),
+    lock_version: requiredResponseField(document, "lock_version"),
+    members: requiredResponseField(document, "members"),
+  };
 }
 
 function incompatible(

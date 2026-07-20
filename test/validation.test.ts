@@ -5,6 +5,8 @@ import {
   validateBusinessModelElementArchiveInput,
   validateBusinessModelElementRejectInput,
   validateBusinessModelElementWriteInput,
+  validateBusinessModelStreamMembershipWriteInput,
+  validateBusinessModelStreamWriteInput,
   validateBusinessModelWriteInput,
 } from "../src/validation.js";
 
@@ -158,5 +160,65 @@ test("Business Model Element rejection accepts only identifiers and lock version
         reason: "No longer relevant",
       }),
     /unsupported fields/,
+  );
+});
+
+test("Business Model Stream write validates complete create and update inputs", () => {
+  const create = validateBusinessModelStreamWriteInput({
+    business_model_id: "model-id",
+    stream_id: null,
+    lock_version: null,
+    name: "Hospitality capsules",
+    details: null,
+    color: "rose",
+    position: 2,
+  });
+  assert.equal(create.stream_id, null);
+  assert.equal(create.color, "rose");
+
+  const update = validateBusinessModelStreamWriteInput({
+    business_model_id: "model-id",
+    stream_id: "stream-id",
+    lock_version: 3,
+    name: "Premium hospitality capsules",
+    details: "Selected premium hotels",
+    color: "purple",
+    position: -1,
+  });
+  assert.equal(update.lock_version, 3);
+  assert.equal(update.position, -1);
+
+  rejectsInput(
+    () => validateBusinessModelStreamWriteInput({ ...create, stream_id: "stream-id" }),
+    /lock_version is required/,
+  );
+  rejectsInput(
+    () => validateBusinessModelStreamWriteInput({ ...create, color: "magenta" }),
+    /supported Business Model Stream color/,
+  );
+  rejectsInput(
+    () => validateBusinessModelStreamWriteInput({ ...create, position: 1.5 }),
+    /position must be an integer/,
+  );
+});
+
+test("Business Model Stream membership write matches the internal tool payload", () => {
+  const input = validateBusinessModelStreamMembershipWriteInput({
+    business_model_id: "model-id",
+    stream_id: "stream-id",
+    stream_lock_version: 4,
+    element_id: "element-id",
+    operation: "add",
+  });
+  assert.equal(input.operation, "add");
+  assert.equal(input.stream_lock_version, 4);
+
+  rejectsInput(
+    () => validateBusinessModelStreamMembershipWriteInput({ ...input, operation: "replace" }),
+    /operation must be 'add' or 'remove'/,
+  );
+  rejectsInput(
+    () => validateBusinessModelStreamMembershipWriteInput({ ...input, stream_lock_version: -1 }),
+    /non-negative integer/,
   );
 });

@@ -29,8 +29,9 @@ test("CLI version declares supported API contract", () => {
   const result = spawnSync(process.execPath, [cliPath, "version"], { encoding: "utf8" });
 
   assert.equal(result.status, 0, result.stderr);
-  const output = JSON.parse(result.stdout) as { api_contract: string };
-  assert.equal(output.api_contract, "1.1");
+  const output = JSON.parse(result.stdout) as { version: string; api_contract: string };
+  assert.equal(output.version, "2.0.0");
+  assert.equal(output.api_contract, "1.2");
 });
 
 test("Business Model Element usage exposes lifecycle commands", () => {
@@ -42,6 +43,67 @@ test("Business Model Element usage exposes lifecycle commands", () => {
   const output = JSON.parse(result.stdout) as { commands: Record<string, unknown> };
   assert.ok(output.commands.archive);
   assert.ok(output.commands.reject);
+});
+
+test("Business Model Stream usage exposes metadata and membership writes", () => {
+  const streamResult = spawnSync(process.execPath, [cliPath, "business-model-stream", "usage"], {
+    encoding: "utf8",
+  });
+  assert.equal(streamResult.status, 0, streamResult.stderr);
+  const streamUsage = JSON.parse(streamResult.stdout) as {
+    commands: { write: { input: { color: string[] } } };
+  };
+  assert.ok(streamUsage.commands.write);
+  assert.ok(streamUsage.commands.write.input.color.includes("rose"));
+
+  const membershipResult = spawnSync(
+    process.execPath,
+    [cliPath, "business-model-stream-membership", "usage"],
+    { encoding: "utf8" },
+  );
+  assert.equal(membershipResult.status, 0, membershipResult.stderr);
+  const membershipUsage = JSON.parse(membershipResult.stdout) as {
+    commands: { write: { input: { operation: string[] } } };
+  };
+  assert.deepEqual(membershipUsage.commands.write.input.operation, ["add", "remove"]);
+});
+
+test("Business Model Stream command dispatch validates JSON before loading config", async (t) => {
+  const home = await mkdtemp(join(tmpdir(), "strapivo-cli-home-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const environment = cleanEnvironment(home);
+
+  const streamResult = spawnSync(
+    process.execPath,
+    [cliPath, "business-model-stream", "write", "--workspace", "acme", "--input", "-"],
+    {
+      encoding: "utf8",
+      env: environment,
+      input: JSON.stringify({ business_model_id: "model-id" }),
+    },
+  );
+  assert.equal(streamResult.status, 7);
+  assert.equal(JSON.parse(streamResult.stderr).error.code, "input_invalid");
+
+  const membershipResult = spawnSync(
+    process.execPath,
+    [
+      cliPath,
+      "business-model-stream-membership",
+      "write",
+      "--workspace",
+      "acme",
+      "--input",
+      "-",
+    ],
+    {
+      encoding: "utf8",
+      env: environment,
+      input: JSON.stringify({ business_model_id: "model-id" }),
+    },
+  );
+  assert.equal(membershipResult.status, 7);
+  assert.equal(JSON.parse(membershipResult.stderr).error.code, "input_invalid");
 });
 
 test("CLI failures are structured JSON on stderr", async (t) => {

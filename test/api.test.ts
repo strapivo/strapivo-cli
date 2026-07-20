@@ -52,6 +52,16 @@ const workspace = {
   business_models_url: "https://strapivo.example/acme/business_models.json",
 };
 
+const streamDocument = {
+  id: "stream-id",
+  name: "Hospitality capsules",
+  details: "Capsules served through premium hotels.",
+  color: "rose" as const,
+  position: 2,
+  lock_version: 1,
+  members: [],
+};
+
 test("Workspace listing sends bearer auth and JSON accept header", async () => {
   const { client, requests } = clientWith(() => jsonResponse([workspace]));
 
@@ -138,6 +148,113 @@ test("Business Model write resolves Workspace link and emits tool-shaped result"
     url: "https://example.com",
     context_notes: "Context",
   });
+});
+
+test("Business Model Stream create omits lock version and returns a tool-shaped result", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse({ ...streamDocument, lock_version: 0 }, 201);
+  });
+
+  const result = await client.writeBusinessModelStream("acme", {
+    business_model_id: "model/id",
+    stream_id: null,
+    lock_version: null,
+    name: streamDocument.name,
+    details: streamDocument.details,
+    color: streamDocument.color,
+    position: streamDocument.position,
+  });
+
+  assert.deepEqual(result, { operation: "created", ...streamDocument, lock_version: 0 });
+  assert.equal(requests[1]?.url, "https://strapivo.example/acme/business_models/model%2Fid/streams.json");
+  assert.equal(requests[1]?.method, "POST");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), {
+    name: streamDocument.name,
+    details: streamDocument.details,
+    color: streamDocument.color,
+    position: streamDocument.position,
+  });
+});
+
+test("Business Model Stream update sends complete metadata and latest lock version", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(streamDocument);
+  });
+
+  const result = await client.writeBusinessModelStream("acme", {
+    business_model_id: "model-id",
+    stream_id: "stream/id",
+    lock_version: 0,
+    name: streamDocument.name,
+    details: streamDocument.details,
+    color: streamDocument.color,
+    position: streamDocument.position,
+  });
+
+  assert.deepEqual(result, { operation: "updated", ...streamDocument });
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model-id/streams/stream%2Fid.json",
+  );
+  assert.equal(requests[1]?.method, "PATCH");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), {
+    lock_version: 0,
+    name: streamDocument.name,
+    details: streamDocument.details,
+    color: streamDocument.color,
+    position: streamDocument.position,
+  });
+});
+
+test("Business Model Stream membership add sends the Stream lock and element ID", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(streamDocument, 201);
+  });
+
+  const result = await client.writeBusinessModelStreamMembership("acme", {
+    business_model_id: "model-id",
+    stream_id: "stream-id",
+    stream_lock_version: 0,
+    element_id: "element-id",
+    operation: "add",
+  });
+
+  assert.deepEqual(result, { operation: "add", ...streamDocument });
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model-id/streams/stream-id/memberships.json",
+  );
+  assert.equal(requests[1]?.method, "POST");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), {
+    lock_version: 0,
+    element_id: "element-id",
+  });
+});
+
+test("Business Model Stream membership remove encodes the element ID and sends a DELETE body", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse({ ...streamDocument, lock_version: 2 });
+  });
+
+  const result = await client.writeBusinessModelStreamMembership("acme", {
+    business_model_id: "model-id",
+    stream_id: "stream/id",
+    stream_lock_version: 1,
+    element_id: "element/id",
+    operation: "remove",
+  });
+
+  assert.deepEqual(result, { operation: "remove", ...streamDocument, lock_version: 2 });
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model-id/streams/stream%2Fid/memberships/element%2Fid.json",
+  );
+  assert.equal(requests[1]?.method, "DELETE");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), { lock_version: 1 });
 });
 
 test("Business Model Element update sends only supported update fields", async () => {

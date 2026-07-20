@@ -2,7 +2,7 @@ openapi: 3.1.0
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 info:
   title: Strapivo JSON API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Machine-readable wire contract for Strapivo's external bearer-authenticated JSON API.
     Routes are shared with the browser application and are not namespaced under `/api`.
@@ -18,6 +18,7 @@ tags:
   - name: Workspaces
   - name: Business Models
   - name: Business Model Elements
+  - name: Business Model Streams
 paths:
   /workspaces.json:
     get:
@@ -320,6 +321,159 @@ paths:
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
 
+  /{workspace_slug}/business_models/{business_model_id}/streams.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+    post:
+      operationId: createBusinessModelStream
+      summary: Create a business model stream
+      description: |
+        Creates a Stream in the selected Business Model. Creates are not idempotent and
+        must omit `lock_version`. Read streams through the complete Business Model document.
+      tags: [Business Model Streams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelStreamCreateRequest"
+      responses:
+        "201":
+          description: Business Model Stream created. No Location is returned because streams are read through their Business Model.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelStream"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}/streams/{stream_id}.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+      - $ref: "#/components/parameters/StreamId"
+    patch:
+      operationId: updateBusinessModelStream
+      summary: Update a business model stream
+      description: |
+        Replaces mutable Stream metadata using optimistic locking. Send the complete
+        metadata set and `lock_version` from the latest Business Model read. Streams with
+        accepted members require a separate human-approval operation and cannot be changed here.
+      tags: [Business Model Streams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelStreamUpdateRequest"
+      responses:
+        "200":
+          description: Updated Business Model Stream.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelStream"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}/streams/{stream_id}/memberships.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+      - $ref: "#/components/parameters/StreamId"
+    post:
+      operationId: addBusinessModelStreamMembership
+      summary: Add an element to a business model stream
+      description: |
+        Adds one current top-level element and advances the Stream lock version. The
+        element must belong to the same Business Model. Accepted elements and Streams
+        containing accepted members require a separate human-approval operation.
+      tags: [Business Model Streams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelStreamMembershipCreateRequest"
+      responses:
+        "201":
+          description: Membership created; returns the updated Stream with its new lock version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelStream"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /{workspace_slug}/business_models/{business_model_id}/streams/{stream_id}/memberships/{element_id}.json:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceSlug"
+      - $ref: "#/components/parameters/BusinessModelId"
+      - $ref: "#/components/parameters/StreamId"
+      - $ref: "#/components/parameters/ElementId"
+    delete:
+      operationId: removeBusinessModelStreamMembership
+      summary: Remove an element from a business model stream
+      description: |
+        Removes one membership and returns the updated Stream. The supplied lock version
+        belongs to the Stream. Streams containing accepted members require a separate
+        human-approval operation and cannot be changed here.
+      tags: [Business Model Streams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessModelStreamMembershipDeleteRequest"
+      responses:
+        "200":
+          description: Membership removed; returns the updated Stream with its new lock version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessModelStream"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -357,6 +511,14 @@ components:
       schema:
         type: string
         minLength: 1
+    StreamId:
+      name: stream_id
+      in: path
+      required: true
+      description: Opaque Business Model Stream identifier.
+      schema:
+        type: string
+        format: uuid
 
   headers:
     Location:
@@ -871,6 +1033,104 @@ components:
       required: [lock_version]
       not:
         required: [rejection]
+      properties:
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+
+    BusinessModelStreamCreateRequest:
+      description: Flat payload or the same payload wrapped under `stream`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelStreamCreatePayload"
+        - type: object
+          required: [stream]
+          properties:
+            stream:
+              $ref: "#/components/schemas/BusinessModelStreamCreatePayload"
+
+    BusinessModelStreamCreatePayload:
+      type: object
+      required: [name, details, color, position]
+      not:
+        anyOf:
+          - required: [stream]
+          - required: [lock_version]
+      properties:
+        name:
+          type: string
+          description: Required by domain validation; blank values return `422`.
+        details:
+          type: [string, "null"]
+        color:
+          type: string
+          enum: [yellow, blue, red, green, rose, purple, orange, cyan, indigo]
+        position:
+          type: integer
+
+    BusinessModelStreamUpdateRequest:
+      description: Flat payload or the same payload wrapped under `stream`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelStreamUpdatePayload"
+        - type: object
+          required: [stream]
+          properties:
+            stream:
+              $ref: "#/components/schemas/BusinessModelStreamUpdatePayload"
+
+    BusinessModelStreamUpdatePayload:
+      type: object
+      required: [lock_version, name, details, color, position]
+      not:
+        required: [stream]
+      properties:
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        name:
+          type: string
+          description: Required by domain validation; blank values return `422`.
+        details:
+          type: [string, "null"]
+        color:
+          type: string
+          enum: [yellow, blue, red, green, rose, purple, orange, cyan, indigo]
+        position:
+          type: integer
+
+    BusinessModelStreamMembershipCreateRequest:
+      description: Flat payload or the same payload wrapped under `membership`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelStreamMembershipCreatePayload"
+        - type: object
+          required: [membership]
+          properties:
+            membership:
+              $ref: "#/components/schemas/BusinessModelStreamMembershipCreatePayload"
+
+    BusinessModelStreamMembershipCreatePayload:
+      type: object
+      required: [lock_version, element_id]
+      not:
+        required: [membership]
+      properties:
+        lock_version:
+          $ref: "#/components/schemas/LockVersion"
+        element_id:
+          $ref: "#/components/schemas/ElementId"
+
+    BusinessModelStreamMembershipDeleteRequest:
+      description: Flat payload or the same payload wrapped under `membership`.
+      oneOf:
+        - $ref: "#/components/schemas/BusinessModelStreamMembershipDeletePayload"
+        - type: object
+          required: [membership]
+          properties:
+            membership:
+              $ref: "#/components/schemas/BusinessModelStreamMembershipDeletePayload"
+
+    BusinessModelStreamMembershipDeletePayload:
+      type: object
+      required: [lock_version]
+      not:
+        required: [membership]
       properties:
         lock_version:
           $ref: "#/components/schemas/LockVersion"

@@ -4,7 +4,7 @@
 
 # Strapivo CLI
 
-Machine-first CLI for giving external agents deterministic access to Strapivo Strategic Memory. V1 exposes Workspaces, Business Models, and Business Model Elements through Strapivo's current JSON API.
+Machine-first CLI for giving external agents deterministic access to Strapivo Strategic Memory. It exposes Workspaces, Business Models, Business Model Elements, and Business Model Streams through Strapivo's JSON API.
 
 ## Install
 
@@ -99,6 +99,13 @@ strapivo business-model write --workspace acme --input - <<'JSON'
   "context_notes": "Current operating context"
 }
 JSON
+```
+
+Business Model Streams are read through their complete Business Model. Use the Stream command families for metadata and membership writes:
+
+```sh
+strapivo business-model-stream usage
+strapivo business-model-stream-membership usage
 ```
 
 See `skills/strapivo/SKILL.md` for agent workflow and safety guidance.

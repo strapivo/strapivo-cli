@@ -3,18 +3,18 @@ name: strapivo
 description: >-
   Read and maintain Strapivo Strategic Memory through the strapivo CLI. Use
   when a user asks about a Workspace, Business Model, Business Model Canvas,
-  Business Model Element, or saved strategic context in Strapivo; when an
-  agent needs Strapivo memory before reasoning; or when asked to create or
-  update Strapivo Business Models or Business Model Elements.
+  Business Model Element, Business Model Stream, or saved strategic context
+  in Strapivo; when an agent needs Strapivo memory before reasoning; or when
+  asked to create or update Strapivo Business Models, Elements, or Streams.
 compatibility: Requires the strapivo CLI (@strapivo/cli), Node >=22, and configured Strapivo API access.
 metadata:
   author: strapivo
-  version: "0.1.0"
+  version: "2.0.0"
 ---
 
 # Strapivo Strategic Memory
 
-Use `strapivo` as deterministic transport into Strapivo Strategic Memory. Current API surface covers Workspaces, Business Models, and Business Model Elements. CLI emits JSON only and never prompts.
+Use `strapivo` as deterministic transport into Strapivo Strategic Memory. Current API surface covers Workspaces, Business Models, Business Model Elements, and Business Model Streams. CLI emits JSON only and never prompts.
 
 ## Preflight
 
@@ -53,11 +53,13 @@ Create requests have no idempotency key. Never retry a create automatically afte
 
 New Business Model Elements become `ai_drafted` and `proposed`. Updates preserve existing lifecycle state and directly change existing content, including accepted content. Rejection and archival are explicit lifecycle writes. Perform updates, rejection, or archival only when the user's request clearly authorizes that change.
 
+Read Streams through the complete Business Model document; there is no standalone Stream read. Stream metadata writes use the complete Stream fields and its latest `lock_version`. Membership writes use `stream_lock_version` and advance that Stream version, so use the returned Stream or reread the Business Model before another mutation. Never retry Stream creation automatically. If Strapivo reports that accepted Stream structure requires human approval, stop and surface that boundary; do not bypass it with another route or operation.
+
 Return operation, resource ID, status when present, and concise review handoff after writes.
 
 ## Current limits
 
-No approval, general deletion, token management, bulk sync, or idempotent create operations. Do not use browser routes, HTML actions, or undocumented endpoints to bypass these limits.
+No Stream approval, general deletion, token management, bulk sync, or idempotent create operations. Stream deletion is not exposed. Do not use browser routes, HTML actions, or undocumented endpoints to bypass these limits.
 
 ## Errors
 

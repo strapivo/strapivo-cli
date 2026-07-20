@@ -15,7 +15,6 @@ jobs:
     outputs:
       artifact: ${{ steps.package.outputs.artifact }}
       checksum: ${{ steps.package.outputs.checksum }}
-      dist_tag: ${{ steps.package.outputs.dist_tag }}
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -32,6 +31,10 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match package version $version"
             exit 1
           }
+          [[ "$version" != *-* ]] || {
+            echo "Only stable versions may be released"
+            exit 1
+          }
 
       - run: npm ci
       - run: npm run api:check
@@ -44,8 +47,6 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           artifact="release/strapivo-cli-$version.tgz"
           checksum="$artifact.sha256"
-          dist_tag="latest"
-          if [[ "$version" == *-* ]]; then dist_tag="next"; fi
 
           mkdir release
           npm pack --pack-destination release
@@ -54,7 +55,6 @@ jobs:
 
           echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
           echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
-          echo "dist_tag=$dist_tag" >> "$GITHUB_OUTPUT"
 
       - name: Verify packaged CLI and bundled skills
         run: npm run package:smoke -- "${{ steps.package.outputs.artifact }}"
@@ -98,7 +98,7 @@ jobs:
         run: >-
           npm publish "./${{ needs.build.outputs.artifact }}"
           --access public
-          --tag "${{ needs.build.outputs.dist_tag }}"
+          --tag latest
 
   github-release:
     needs: [build, publish-npm]
@@ -118,13 +118,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          prerelease=()
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease+=(--prerelease); fi
-
           gh release create "$GITHUB_REF_NAME" \
             "${{ needs.build.outputs.artifact }}" \
             "${{ needs.build.outputs.checksum }}" \
             --verify-tag \
             --generate-notes \
-            --title "$GITHUB_REF_NAME" \
-            "${prerelease[@]}"
+            --title "$GITHUB_REF_NAME"
