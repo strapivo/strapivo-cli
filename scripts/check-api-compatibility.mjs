@@ -23,6 +23,14 @@ const requiredOperations = [
   ["POST", "/{workspace_slug}/business_models.json", "createBusinessModel"],
   ["GET", "/{workspace_slug}/business_models/{business_model_id}.json", "getBusinessModel"],
   ["PATCH", "/{workspace_slug}/business_models/{business_model_id}.json", "updateBusinessModel"],
+  ["GET", "/{workspace_slug}/business_models/{business_model_id}/environment.json", "getBusinessModelEnvironment"],
+  ["PATCH", "/{workspace_slug}/business_models/{business_model_id}/environment.json", "updateBusinessModelEnvironment"],
+  ["GET", "/{workspace_slug}/business_models/{business_model_id}/environment_items.json", "listBusinessModelEnvironmentItems"],
+  ["POST", "/{workspace_slug}/business_models/{business_model_id}/environment_items.json", "createBusinessModelEnvironmentItem"],
+  ["GET", "/{workspace_slug}/business_models/{business_model_id}/environment_items/{environment_item_id}.json", "getBusinessModelEnvironmentItem"],
+  ["PATCH", "/{workspace_slug}/business_models/{business_model_id}/environment_items/{environment_item_id}.json", "updateBusinessModelEnvironmentItem"],
+  ["POST", "/{workspace_slug}/business_models/{business_model_id}/environment_items/{environment_item_id}/archival.json", "archiveBusinessModelEnvironmentItem"],
+  ["DELETE", "/{workspace_slug}/business_models/{business_model_id}/environment_items/{environment_item_id}/rejection.json", "rejectBusinessModelEnvironmentItem"],
   ["POST", "/{workspace_slug}/business_models/{business_model_id}/elements.json", "createBusinessModelElement"],
   ["GET", "/{workspace_slug}/business_models/{business_model_id}/elements/{element_id}.json", "getBusinessModelElement"],
   ["PATCH", "/{workspace_slug}/business_models/{business_model_id}/elements/{element_id}.json", "updateBusinessModelElement"],
@@ -54,11 +62,20 @@ function documentAt(path) {
 
 const baseline = documentAt(baselinePath);
 const candidate = documentAt(candidatePath);
+const baselineVersion = baseline.info?.version;
+if (typeof baselineVersion !== "string") fail("baseline info.version is missing");
 const contractVersion = candidate.info?.version;
 if (typeof contractVersion !== "string") fail("candidate info.version is missing");
 
 const [supportedMajor, supportedMinor] = supportedContract.split(".").map(Number);
+const [baselineMajor, baselineMinor] = baselineVersion.split(".").map(Number);
 const [candidateMajor, candidateMinor] = contractVersion.split(".").map(Number);
+if (!Number.isInteger(supportedMajor) || !Number.isInteger(supportedMinor)) {
+  fail(`package.json strapivo.apiContract '${supportedContract}' is invalid`);
+}
+if (baselineMajor !== supportedMajor || baselineMinor !== supportedMinor) {
+  fail(`bundled baseline ${baselineVersion} does not match CLI contract ${supportedContract}`);
+}
 if (candidateMajor !== supportedMajor || !Number.isInteger(candidateMinor) || candidateMinor < supportedMinor) {
   fail(`CLI supports API ${supportedContract}; candidate declares ${contractVersion}`);
 }

@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { CliError, ExitCode } from "./errors.js";
 import {
   BUSINESS_MODEL_BLOCKS,
+  BUSINESS_MODEL_ENVIRONMENT_FOCUSES,
+  BUSINESS_MODEL_ENVIRONMENT_MAX_PAGE,
+  BUSINESS_MODEL_ENVIRONMENT_TOPICS,
+  BUSINESS_MODEL_ENVIRONMENT_VIEWS,
   BUSINESS_MODEL_STREAM_COLORS,
   BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS,
   CHILD_TYPES_BY_BLOCK,
@@ -53,6 +57,88 @@ const commands = {
           name: "complete non-empty string",
           url: "complete string|null",
           context_notes: "complete string|null",
+        },
+      },
+    },
+  },
+  "business-model-environment": {
+    description: "Read or update the scope of one Business Model Environment",
+    commands: {
+      read: {
+        usage:
+          "strapivo business-model-environment read --workspace SLUG --business-model-id ID",
+        description: "Read the complete mutable scope and current lock version",
+      },
+      write: {
+        usage: "strapivo business-model-environment write --workspace SLUG --input FILE|-",
+        description: "Update both nullable scope fields with the latest lock version",
+        input: {
+          business_model_id: "Business Model ID",
+          lock_version: "non-negative integer; latest Business Model Environment version",
+          geography: "complete string|null, at most 300 characters; null clears the field",
+          primary_market: "complete string|null, at most 300 characters; null clears the field",
+        },
+      },
+    },
+  },
+  "business-model-environment-items": {
+    description: "Read one focused page of Business Model Environment Items",
+    commands: {
+      list: {
+        usage:
+          "strapivo business-model-environment-items list --workspace SLUG --business-model-id ID --focus FOCUS [--view foundation|all] [--page N]",
+        description:
+          "Returns one bounded page; follow total_pages and inspect the same focus with view=all before writes",
+        options: {
+          focus: BUSINESS_MODEL_ENVIRONMENT_FOCUSES,
+          view: { values: BUSINESS_MODEL_ENVIRONMENT_VIEWS, default: "foundation" },
+          page: `integer from 1 to ${BUSINESS_MODEL_ENVIRONMENT_MAX_PAGE}; default 1`,
+        },
+      },
+    },
+  },
+  "business-model-environment-item": {
+    description: "Read, write, archive, or reject one Business Model Environment Item",
+    boundary: "Acceptance is not exposed; a human must accept proposals in the browser application",
+    commands: {
+      read: {
+        usage:
+          "strapivo business-model-environment-item read --workspace SLUG --business-model-id ID --environment-item-id ID",
+      },
+      write: {
+        usage: "strapivo business-model-environment-item write --workspace SLUG --input FILE|-",
+        description:
+          "Create or update an ai_drafted proposal after reading the same focus with view=all through every page",
+        input: {
+          business_model_id: "Business Model ID",
+          environment_item_id: "string|null; null creates, string updates",
+          lock_version: "non-negative integer|null; latest item version for updates",
+          topic: BUSINESS_MODEL_ENVIRONMENT_TOPICS,
+          title: "complete non-empty string",
+          details: "complete non-empty string",
+          sources: {
+            description: "complete list of 1 to 3 credible public HTTP(S) sources",
+            item: { title: "non-empty string", url: "absolute public HTTP(S) URL" },
+          },
+        },
+      },
+      archive: {
+        usage: "strapivo business-model-environment-item archive --workspace SLUG --input FILE|-",
+        description: "Archive an accepted Business Model Environment Item",
+        input: {
+          business_model_id: "Business Model ID",
+          environment_item_id: "accepted Business Model Environment Item ID",
+          lock_version: "non-negative integer; latest item version",
+          archive_reason: "string|null; optional reason, represented explicitly",
+        },
+      },
+      reject: {
+        usage: "strapivo business-model-environment-item reject --workspace SLUG --input FILE|-",
+        description: "Permanently delete a proposed Business Model Environment Item",
+        input: {
+          business_model_id: "Business Model ID",
+          environment_item_id: "proposed Business Model Environment Item ID",
+          lock_version: "non-negative integer; latest item version",
         },
       },
     },

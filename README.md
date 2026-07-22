@@ -4,7 +4,7 @@
 
 # Strapivo CLI
 
-Machine-first CLI for giving external agents deterministic access to Strapivo Strategic Memory. It exposes Workspaces, Business Models, Business Model Elements, and Business Model Streams through Strapivo's JSON API.
+Machine-first CLI for giving external agents deterministic access to Strapivo Strategic Memory. It exposes Workspaces, Business Models, Business Model Elements, Business Model Streams, Business Model Environments, and Environment Items through Strapivo's JSON API.
 
 ## Install
 
@@ -83,6 +83,9 @@ Discover commands rather than guessing:
 strapivo usage
 strapivo business-model usage
 strapivo business-model-element usage
+strapivo business-model-environment usage
+strapivo business-model-environment-items usage
+strapivo business-model-environment-item usage
 ```
 
 Workspace-scoped commands require an explicit Workspace slug. Writes consume complete tool-shaped JSON from stdin or a file:
@@ -108,7 +111,15 @@ strapivo business-model-stream usage
 strapivo business-model-stream-membership usage
 ```
 
-See `skills/strapivo/SKILL.md` for agent workflow and safety guidance.
+Read the Business Model Environment scope separately before changing it. Focused Environment Item reads return one bounded page, so follow `total_pages`:
+
+```sh
+strapivo business-model-environment read --workspace acme --business-model-id 41f974b63df9
+strapivo business-model-environment-items list --workspace acme --business-model-id 41f974b63df9 --focus competitors --view all --page 1
+strapivo business-model-environment-item usage
+```
+
+Environment Item writes create or update sourced proposals. Acceptance remains a human action in the browser application. See `skills/strapivo/SKILL.md` for duplicate checks, pagination, lifecycle, and safety guidance.
 
 ## Development
 

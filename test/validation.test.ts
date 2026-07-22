@@ -2,9 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CliError } from "../src/errors.js";
 import {
+  BUSINESS_MODEL_ENVIRONMENT_TOPICS,
   validateBusinessModelElementArchiveInput,
   validateBusinessModelElementRejectInput,
   validateBusinessModelElementWriteInput,
+  validateBusinessModelEnvironmentFocus,
+  validateBusinessModelEnvironmentItemArchiveInput,
+  validateBusinessModelEnvironmentItemRejectInput,
+  validateBusinessModelEnvironmentItemWriteInput,
+  validateBusinessModelEnvironmentPage,
+  validateBusinessModelEnvironmentView,
+  validateBusinessModelEnvironmentWriteInput,
   validateBusinessModelStreamMembershipWriteInput,
   validateBusinessModelStreamWriteInput,
   validateBusinessModelWriteInput,
@@ -159,6 +167,129 @@ test("Business Model Element rejection accepts only identifiers and lock version
         lock_version: 2,
         reason: "No longer relevant",
       }),
+    /unsupported fields/,
+  );
+});
+
+test("Business Model Environment scope write requires complete nullable fields", () => {
+  const input = validateBusinessModelEnvironmentWriteInput({
+    business_model_id: "model-id",
+    lock_version: 2,
+    geography: null,
+    primary_market: "Premium coffee",
+  });
+  assert.equal(input.geography, null);
+
+  rejectsInput(
+    () =>
+      validateBusinessModelEnvironmentWriteInput({
+        business_model_id: "model-id",
+        lock_version: 2,
+        geography: "Italy",
+      }),
+    /missing required fields/,
+  );
+  rejectsInput(
+    () =>
+      validateBusinessModelEnvironmentWriteInput({
+        business_model_id: "model-id",
+        lock_version: 2,
+        geography: "x".repeat(301),
+        primary_market: null,
+      }),
+    /at most 300 characters/,
+  );
+});
+
+test("Business Model Environment focused read options validate taxonomy and page bounds", () => {
+  assert.equal(validateBusinessModelEnvironmentFocus("industry_forces"), "industry_forces");
+  assert.equal(validateBusinessModelEnvironmentFocus("competitors"), "competitors");
+  assert.equal(validateBusinessModelEnvironmentView("all"), "all");
+  assert.equal(validateBusinessModelEnvironmentPage("10000"), 10_000);
+
+  rejectsInput(() => validateBusinessModelEnvironmentFocus("unknown"), /topic, force, or 'all'/);
+  rejectsInput(() => validateBusinessModelEnvironmentView("proposals"), /foundation.*all/);
+  rejectsInput(() => validateBusinessModelEnvironmentPage("1.5"), /between 1 and 10000/);
+  rejectsInput(() => validateBusinessModelEnvironmentPage("10001"), /between 1 and 10000/);
+});
+
+test("Business Model Environment Item writes match the complete internal tool payload", () => {
+  for (const topic of BUSINESS_MODEL_ENVIRONMENT_TOPICS) {
+    const input = validateBusinessModelEnvironmentItemWriteInput({
+      business_model_id: "model-id",
+      environment_item_id: null,
+      lock_version: null,
+      topic,
+      title: "Relevant change",
+      details: "Why this matters to the Business Model.",
+      sources: [{ title: "Primary source", url: "https://example.com/source" }],
+    });
+    assert.equal(input.topic, topic);
+  }
+
+  const update = validateBusinessModelEnvironmentItemWriteInput({
+    business_model_id: "model-id",
+    environment_item_id: "item-id",
+    lock_version: 3,
+    topic: "competitors",
+    title: "Competitor update",
+    details: "Updated complete details.",
+    sources: [
+      { title: "First source", url: "https://example.com/one" },
+      { title: "Second source", url: "https://example.com/two" },
+    ],
+  });
+  assert.equal(update.lock_version, 3);
+
+  rejectsInput(
+    () => validateBusinessModelEnvironmentItemWriteInput({ ...update, lock_version: null }),
+    /lock_version is required/,
+  );
+  rejectsInput(
+    () => validateBusinessModelEnvironmentItemWriteInput({ ...update, topic: "industry_forces" }),
+    /supported Business Model Environment topic/,
+  );
+  rejectsInput(
+    () => validateBusinessModelEnvironmentItemWriteInput({ ...update, sources: [] }),
+    /between 1 and 3/,
+  );
+  rejectsInput(
+    () =>
+      validateBusinessModelEnvironmentItemWriteInput({
+        ...update,
+        sources: [{ title: "Source", url: "https://example.com", note: "unsupported" }],
+      }),
+    /unsupported fields/,
+  );
+});
+
+test("Business Model Environment Item lifecycle inputs are strict and versioned", () => {
+  const archive = validateBusinessModelEnvironmentItemArchiveInput({
+    business_model_id: "model-id",
+    environment_item_id: "item-id",
+    lock_version: 3,
+    archive_reason: null,
+  });
+  assert.equal(archive.archive_reason, null);
+
+  const reject = validateBusinessModelEnvironmentItemRejectInput({
+    business_model_id: "model-id",
+    environment_item_id: "item-id",
+    lock_version: 2,
+  });
+  assert.equal(reject.lock_version, 2);
+
+  rejectsInput(
+    () =>
+      validateBusinessModelEnvironmentItemArchiveInput({
+        business_model_id: "model-id",
+        environment_item_id: "item-id",
+        lock_version: 3,
+      }),
+    /missing required fields/,
+  );
+  rejectsInput(
+    () => validateBusinessModelEnvironmentItemRejectInput({ ...reject, reason: "Duplicate" }),
     /unsupported fields/,
   );
 });

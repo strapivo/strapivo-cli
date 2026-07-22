@@ -79,6 +79,7 @@ test("Business Model read preserves streams from the complete document", async (
     url: null,
     context_notes: null,
     lock_version: 3,
+    environment: { geography: "Italy", primary_market: "Enterprise software" },
     blocks: {},
     streams: [
       {
@@ -344,6 +345,254 @@ test("Business Model Element reject sends DELETE body and accepts 204", async ()
   );
   assert.equal(requests[1]?.method, "DELETE");
   assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), { lock_version: 2 });
+});
+
+test("Business Model Environment read and update use the singular nested endpoint", async () => {
+  const environment = {
+    business_model_id: "model/id",
+    geography: "Italy",
+    primary_market: null,
+    lock_version: 3,
+  };
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(environment);
+  });
+
+  assert.deepEqual(await client.readBusinessModelEnvironment("acme", "model/id"), environment);
+  const result = await client.writeBusinessModelEnvironment("acme", {
+    business_model_id: "model/id",
+    lock_version: 3,
+    geography: "Northern Italy",
+    primary_market: null,
+  });
+
+  assert.deepEqual(result, {
+    operation: "updated",
+    business_model_id: "model/id",
+    scope: { geography: "Italy", primary_market: null, lock_version: 3 },
+  });
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model%2Fid/environment.json",
+  );
+  assert.equal(requests[3]?.method, "PATCH");
+  assert.deepEqual(JSON.parse(requests[3]?.body ?? ""), {
+    lock_version: 3,
+    geography: "Northern Italy",
+    primary_market: null,
+  });
+});
+
+test("Business Model Environment Item list sends explicit focus, view, and page", async () => {
+  const collection = {
+    business_model_id: "model-id",
+    view: "all",
+    focus: "industry_forces",
+    items: [],
+    pagination: { page: 2, total_pages: 3, more_items_beyond_page_limit: false },
+  };
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(collection);
+  });
+
+  assert.deepEqual(
+    await client.listBusinessModelEnvironmentItems("acme", "model-id", {
+      focus: "industry_forces",
+      view: "all",
+      page: 2,
+    }),
+    collection,
+  );
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model-id/environment_items.json?focus=industry_forces&view=all&page=2",
+  );
+  assert.equal(requests[1]?.method, "GET");
+});
+
+test("Business Model Environment Item read preserves the complete document", async () => {
+  const item = {
+    id: "item/id",
+    kind: "environment_item",
+    topic: "regulatory_trends",
+    title: "New regulation",
+    details: "Complete details",
+    sources: [{ title: "Regulator", url: "https://example.com/regulation" }],
+    status: "archived",
+    origin: "ai_drafted",
+    position: 1,
+    lock_version: 4,
+  };
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(item);
+  });
+
+  assert.deepEqual(
+    await client.readBusinessModelEnvironmentItem("acme", "model/id", "item/id"),
+    item,
+  );
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model%2Fid/environment_items/item%2Fid.json",
+  );
+});
+
+test("Business Model Environment Item create omits ID and lock version", async () => {
+  const response = {
+    id: "item-id",
+    kind: "competitor",
+    topic: "competitors",
+    title: "Lavazza",
+    details: "Relevant competitor",
+    sources: [{ title: "Lavazza", url: "https://www.lavazza.com/en" }],
+    status: "proposed",
+    origin: "ai_drafted",
+    position: 1,
+    lock_version: 0,
+  };
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(response, 201);
+  });
+
+  const result = await client.writeBusinessModelEnvironmentItem("acme", {
+    business_model_id: "model-id",
+    environment_item_id: null,
+    lock_version: null,
+    topic: "competitors",
+    title: "Lavazza",
+    details: "Relevant competitor",
+    sources: [{ title: "Lavazza", url: "https://www.lavazza.com/en" }],
+  });
+
+  assert.deepEqual(result, {
+    operation: "created",
+    business_model_id: "model-id",
+    id: "item-id",
+    kind: "competitor",
+    topic: "competitors",
+    status: "proposed",
+    origin: "ai_drafted",
+    position: 1,
+    lock_version: 0,
+  });
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model-id/environment_items.json",
+  );
+  assert.equal(requests[1]?.method, "POST");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), {
+    topic: "competitors",
+    title: "Lavazza",
+    details: "Relevant competitor",
+    sources: [{ title: "Lavazza", url: "https://www.lavazza.com/en" }],
+  });
+});
+
+test("Business Model Environment Item update sends the complete mutable proposal", async () => {
+  const response = {
+    id: "item/id",
+    kind: "environment_item",
+    topic: "technology_trends",
+    status: "proposed",
+    origin: "ai_drafted",
+    position: 2,
+    lock_version: 4,
+  };
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return jsonResponse(response);
+  });
+
+  const result = await client.writeBusinessModelEnvironmentItem("acme", {
+    business_model_id: "model-id",
+    environment_item_id: "item/id",
+    lock_version: 3,
+    topic: "technology_trends",
+    title: "AI adoption",
+    details: "Updated complete details",
+    sources: [{ title: "Research", url: "https://example.com/research" }],
+  });
+
+  assert.equal(result.operation, "updated");
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model-id/environment_items/item%2Fid.json",
+  );
+  assert.equal(requests[1]?.method, "PATCH");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), {
+    lock_version: 3,
+    topic: "technology_trends",
+    title: "AI adoption",
+    details: "Updated complete details",
+    sources: [{ title: "Research", url: "https://example.com/research" }],
+  });
+});
+
+test("Business Model Environment Item lifecycle operations accept empty success", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    return new Response(null, { status: 204 });
+  });
+
+  assert.deepEqual(
+    await client.archiveBusinessModelEnvironmentItem("acme", {
+      business_model_id: "model/id",
+      environment_item_id: "item/id",
+      lock_version: 3,
+      archive_reason: null,
+    }),
+    { operation: "archived", business_model_id: "model/id", environment_item_id: "item/id" },
+  );
+  assert.deepEqual(
+    await client.rejectBusinessModelEnvironmentItem("acme", {
+      business_model_id: "model/id",
+      environment_item_id: "item/id",
+      lock_version: 4,
+    }),
+    { operation: "rejected", business_model_id: "model/id", environment_item_id: "item/id" },
+  );
+
+  assert.equal(
+    requests[1]?.url,
+    "https://strapivo.example/acme/business_models/model%2Fid/environment_items/item%2Fid/archival.json",
+  );
+  assert.equal(requests[1]?.method, "POST");
+  assert.deepEqual(JSON.parse(requests[1]?.body ?? ""), {
+    lock_version: 3,
+    archive_reason: null,
+  });
+  assert.equal(
+    requests[3]?.url,
+    "https://strapivo.example/acme/business_models/model%2Fid/environment_items/item%2Fid/rejection.json",
+  );
+  assert.equal(requests[3]?.method, "DELETE");
+  assert.deepEqual(JSON.parse(requests[3]?.body ?? ""), { lock_version: 4 });
+});
+
+test("ambiguous Environment Item create failures are not marked safe to retry", async () => {
+  const { client, requests } = clientWith((request) => {
+    if (request.url.endsWith("/workspaces.json")) return jsonResponse([workspace]);
+    throw new Error("connection closed after send");
+  });
+
+  await assert.rejects(
+    client.writeBusinessModelEnvironmentItem("acme", {
+      business_model_id: "model-id",
+      environment_item_id: null,
+      lock_version: null,
+      topic: "competitors",
+      title: "Lavazza",
+      details: "Relevant competitor",
+      sources: [{ title: "Lavazza", url: "https://www.lavazza.com/en" }],
+    }),
+    (error: unknown) =>
+      error instanceof CliError && error.code === "transport_error" && !error.retryable,
+  );
+  assert.equal(requests.length, 2);
 });
 
 test("API conflict preserves stable server error and conflict exit code", async () => {

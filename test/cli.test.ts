@@ -30,8 +30,8 @@ test("CLI version declares supported API contract", () => {
 
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout) as { version: string; api_contract: string };
-  assert.equal(output.version, "2.0.0");
-  assert.equal(output.api_contract, "1.2");
+  assert.equal(output.version, "2.1.0");
+  assert.equal(output.api_contract, "1.3");
 });
 
 test("Business Model Element usage exposes lifecycle commands", () => {
@@ -43,6 +43,45 @@ test("Business Model Element usage exposes lifecycle commands", () => {
   const output = JSON.parse(result.stdout) as { commands: Record<string, unknown> };
   assert.ok(output.commands.archive);
   assert.ok(output.commands.reject);
+});
+
+test("Business Model Environment usage exposes scope, focused reads, and item lifecycle", () => {
+  const environmentResult = spawnSync(
+    process.execPath,
+    [cliPath, "business-model-environment", "usage"],
+    { encoding: "utf8" },
+  );
+  assert.equal(environmentResult.status, 0, environmentResult.stderr);
+  const environmentUsage = JSON.parse(environmentResult.stdout) as {
+    commands: Record<string, unknown>;
+  };
+  assert.ok(environmentUsage.commands.read);
+  assert.ok(environmentUsage.commands.write);
+
+  const collectionResult = spawnSync(
+    process.execPath,
+    [cliPath, "business-model-environment-items", "usage"],
+    { encoding: "utf8" },
+  );
+  assert.equal(collectionResult.status, 0, collectionResult.stderr);
+  const collectionUsage = JSON.parse(collectionResult.stdout) as {
+    commands: { list: { options: { focus: string[] } } };
+  };
+  assert.ok(collectionUsage.commands.list.options.focus.includes("all"));
+  assert.ok(collectionUsage.commands.list.options.focus.includes("competitors"));
+
+  const itemResult = spawnSync(
+    process.execPath,
+    [cliPath, "business-model-environment-item", "usage"],
+    { encoding: "utf8" },
+  );
+  assert.equal(itemResult.status, 0, itemResult.stderr);
+  const itemUsage = JSON.parse(itemResult.stdout) as { commands: Record<string, unknown> };
+  assert.ok(itemUsage.commands.read);
+  assert.ok(itemUsage.commands.write);
+  assert.ok(itemUsage.commands.archive);
+  assert.ok(itemUsage.commands.reject);
+  assert.equal(itemUsage.commands.accept, undefined);
 });
 
 test("Business Model Stream usage exposes metadata and membership writes", () => {
@@ -104,6 +143,44 @@ test("Business Model Stream command dispatch validates JSON before loading confi
   );
   assert.equal(membershipResult.status, 7);
   assert.equal(JSON.parse(membershipResult.stderr).error.code, "input_invalid");
+});
+
+test("Business Model Environment commands validate inputs before loading config", async (t) => {
+  const home = await mkdtemp(join(tmpdir(), "strapivo-cli-home-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const environment = cleanEnvironment(home);
+
+  const listResult = spawnSync(
+    process.execPath,
+    [
+      cliPath,
+      "business-model-environment-items",
+      "list",
+      "--workspace",
+      "acme",
+      "--business-model-id",
+      "model-id",
+      "--focus",
+      "competitors",
+      "--page",
+      "0",
+    ],
+    { encoding: "utf8", env: environment },
+  );
+  assert.equal(listResult.status, 7);
+  assert.equal(JSON.parse(listResult.stderr).error.code, "input_invalid");
+
+  const writeResult = spawnSync(
+    process.execPath,
+    [cliPath, "business-model-environment-item", "write", "--workspace", "acme", "--input", "-"],
+    {
+      encoding: "utf8",
+      env: environment,
+      input: JSON.stringify({ business_model_id: "model-id" }),
+    },
+  );
+  assert.equal(writeResult.status, 7);
+  assert.equal(JSON.parse(writeResult.stderr).error.code, "input_invalid");
 });
 
 test("CLI failures are structured JSON on stderr", async (t) => {

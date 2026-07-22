@@ -33,6 +33,47 @@ export const BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS = ["add", "remove"] as 
 export type BusinessModelStreamMembershipOperation =
   (typeof BUSINESS_MODEL_STREAM_MEMBERSHIP_OPERATIONS)[number];
 
+export const BUSINESS_MODEL_ENVIRONMENT_FORCES = [
+  "market_forces",
+  "macro_economic_forces",
+  "industry_forces",
+  "key_trends",
+] as const;
+
+export const BUSINESS_MODEL_ENVIRONMENT_TOPICS = [
+  "market_issues",
+  "market_segments",
+  "needs_demands",
+  "switching_costs",
+  "revenue_attractiveness",
+  "global_market_conditions",
+  "capital_markets",
+  "commodities_other_resources",
+  "economic_infrastructure",
+  "competitors",
+  "new_entrants",
+  "substitute_products_services",
+  "stakeholders",
+  "suppliers_value_chain_actors",
+  "technology_trends",
+  "regulatory_trends",
+  "societal_cultural_trends",
+  "socioeconomic_trends",
+] as const;
+
+export const BUSINESS_MODEL_ENVIRONMENT_FOCUSES = [
+  "all",
+  ...BUSINESS_MODEL_ENVIRONMENT_FORCES,
+  ...BUSINESS_MODEL_ENVIRONMENT_TOPICS,
+] as const;
+
+export const BUSINESS_MODEL_ENVIRONMENT_VIEWS = ["foundation", "all"] as const;
+export const BUSINESS_MODEL_ENVIRONMENT_MAX_PAGE = 10_000;
+
+export type BusinessModelEnvironmentFocus = (typeof BUSINESS_MODEL_ENVIRONMENT_FOCUSES)[number];
+export type BusinessModelEnvironmentTopic = (typeof BUSINESS_MODEL_ENVIRONMENT_TOPICS)[number];
+export type BusinessModelEnvironmentView = (typeof BUSINESS_MODEL_ENVIRONMENT_VIEWS)[number];
+
 export const CHILD_TYPES_BY_BLOCK = {
   customer_segments: ["job", "pain", "gain"],
   value_propositions: ["product_service", "pain_reliever", "gain_creator"],
@@ -86,6 +127,47 @@ export interface BusinessModelStreamMembershipWriteInput {
   stream_lock_version: number;
   element_id: string;
   operation: BusinessModelStreamMembershipOperation;
+}
+
+export interface BusinessModelEnvironmentListOptions {
+  focus: BusinessModelEnvironmentFocus;
+  view: BusinessModelEnvironmentView;
+  page: number;
+}
+
+export interface BusinessModelEnvironmentWriteInput {
+  business_model_id: string;
+  lock_version: number;
+  geography: string | null;
+  primary_market: string | null;
+}
+
+export interface BusinessModelEnvironmentItemSourceInput {
+  title: string;
+  url: string;
+}
+
+export interface BusinessModelEnvironmentItemWriteInput {
+  business_model_id: string;
+  environment_item_id: string | null;
+  lock_version: number | null;
+  topic: BusinessModelEnvironmentTopic;
+  title: string;
+  details: string;
+  sources: BusinessModelEnvironmentItemSourceInput[];
+}
+
+export interface BusinessModelEnvironmentItemArchiveInput {
+  business_model_id: string;
+  environment_item_id: string;
+  lock_version: number;
+  archive_reason: string | null;
+}
+
+export interface BusinessModelEnvironmentItemRejectInput {
+  business_model_id: string;
+  environment_item_id: string;
+  lock_version: number;
 }
 
 export function validateBusinessModelWriteInput(value: Record<string, unknown>): BusinessModelWriteInput {
@@ -275,6 +357,122 @@ export function validateBusinessModelStreamMembershipWriteInput(
   };
 }
 
+export function validateBusinessModelEnvironmentWriteInput(
+  value: Record<string, unknown>,
+): BusinessModelEnvironmentWriteInput {
+  assertOnlyKeys(value, ["business_model_id", "lock_version", "geography", "primary_market"]);
+  assertKeysPresent(value, ["business_model_id", "lock_version", "geography", "primary_market"]);
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    lock_version: lockVersion(value.lock_version),
+    geography: nullableBoundedString(value.geography, "geography", 300),
+    primary_market: nullableBoundedString(value.primary_market, "primary_market", 300),
+  };
+}
+
+export function validateBusinessModelEnvironmentItemWriteInput(
+  value: Record<string, unknown>,
+): BusinessModelEnvironmentItemWriteInput {
+  assertOnlyKeys(value, [
+    "business_model_id",
+    "environment_item_id",
+    "lock_version",
+    "topic",
+    "title",
+    "details",
+    "sources",
+  ]);
+  assertKeysPresent(value, [
+    "business_model_id",
+    "environment_item_id",
+    "lock_version",
+    "topic",
+    "title",
+    "details",
+    "sources",
+  ]);
+
+  const environmentItemId = nullableIdentifier(value.environment_item_id, "environment_item_id");
+  const itemLockVersion = nullableLockVersion(value.lock_version);
+  if ((environmentItemId === null) !== (itemLockVersion === null)) {
+    throw inputError(
+      environmentItemId === null
+        ? "lock_version must be null when creating a Business Model Environment Item"
+        : "lock_version is required when updating a Business Model Environment Item",
+    );
+  }
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    environment_item_id: environmentItemId,
+    lock_version: itemLockVersion,
+    topic: businessModelEnvironmentTopic(value.topic),
+    title: requiredString(value.title, "title", { allowEmpty: false }),
+    details: requiredString(value.details, "details", { allowEmpty: false }),
+    sources: businessModelEnvironmentItemSources(value.sources),
+  };
+}
+
+export function validateBusinessModelEnvironmentItemArchiveInput(
+  value: Record<string, unknown>,
+): BusinessModelEnvironmentItemArchiveInput {
+  assertOnlyKeys(value, ["business_model_id", "environment_item_id", "lock_version", "archive_reason"]);
+  assertKeysPresent(value, ["business_model_id", "environment_item_id", "lock_version", "archive_reason"]);
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    environment_item_id: identifier(value.environment_item_id, "environment_item_id"),
+    lock_version: lockVersion(value.lock_version),
+    archive_reason: nullableString(value.archive_reason, "archive_reason"),
+  };
+}
+
+export function validateBusinessModelEnvironmentItemRejectInput(
+  value: Record<string, unknown>,
+): BusinessModelEnvironmentItemRejectInput {
+  assertOnlyKeys(value, ["business_model_id", "environment_item_id", "lock_version"]);
+  assertKeysPresent(value, ["business_model_id", "environment_item_id", "lock_version"]);
+
+  return {
+    business_model_id: identifier(value.business_model_id, "business_model_id"),
+    environment_item_id: identifier(value.environment_item_id, "environment_item_id"),
+    lock_version: lockVersion(value.lock_version),
+  };
+}
+
+export function validateBusinessModelEnvironmentFocus(value: unknown): BusinessModelEnvironmentFocus {
+  if (
+    typeof value !== "string" ||
+    !BUSINESS_MODEL_ENVIRONMENT_FOCUSES.includes(value as BusinessModelEnvironmentFocus)
+  ) {
+    throw inputError("focus must be a Business Model Environment topic, force, or 'all'", {
+      supported_focuses: BUSINESS_MODEL_ENVIRONMENT_FOCUSES,
+    });
+  }
+  return value as BusinessModelEnvironmentFocus;
+}
+
+export function validateBusinessModelEnvironmentView(value: unknown): BusinessModelEnvironmentView {
+  if (
+    typeof value !== "string" ||
+    !BUSINESS_MODEL_ENVIRONMENT_VIEWS.includes(value as BusinessModelEnvironmentView)
+  ) {
+    throw inputError("view must be 'foundation' or 'all'", {
+      supported_views: BUSINESS_MODEL_ENVIRONMENT_VIEWS,
+    });
+  }
+  return value as BusinessModelEnvironmentView;
+}
+
+export function validateBusinessModelEnvironmentPage(value: unknown): number {
+  const page = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
+  if (!Number.isInteger(page) || (page as number) < 1 || (page as number) > BUSINESS_MODEL_ENVIRONMENT_MAX_PAGE) {
+    throw inputError(`page must be an integer between 1 and ${BUSINESS_MODEL_ENVIRONMENT_MAX_PAGE}`);
+  }
+  return page as number;
+}
+
 export function identifier(value: unknown, field: string): string {
   return requiredString(value, field, { allowEmpty: false });
 }
@@ -286,6 +484,14 @@ function nullableIdentifier(value: unknown, field: string): string | null {
 function nullableString(value: unknown, field: string): string | null {
   if (value === null) return null;
   return requiredString(value, field, { allowEmpty: true });
+}
+
+function nullableBoundedString(value: unknown, field: string, maximumLength: number): string | null {
+  const string = nullableString(value, field);
+  if (string !== null && [...string].length > maximumLength) {
+    throw inputError(`${field} must contain at most ${maximumLength} characters`);
+  }
+  return string;
 }
 
 function nullableLockVersion(value: unknown): number | null {
@@ -305,6 +511,36 @@ function integer(value: unknown, field: string): number {
     throw inputError(`${field} must be an integer`);
   }
   return value;
+}
+
+function businessModelEnvironmentTopic(value: unknown): BusinessModelEnvironmentTopic {
+  if (
+    typeof value !== "string" ||
+    !BUSINESS_MODEL_ENVIRONMENT_TOPICS.includes(value as BusinessModelEnvironmentTopic)
+  ) {
+    throw inputError("topic must be a supported Business Model Environment topic", {
+      supported_topics: BUSINESS_MODEL_ENVIRONMENT_TOPICS,
+    });
+  }
+  return value as BusinessModelEnvironmentTopic;
+}
+
+function businessModelEnvironmentItemSources(value: unknown): BusinessModelEnvironmentItemSourceInput[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 3) {
+    throw inputError("sources must contain between 1 and 3 source objects");
+  }
+
+  return value.map((source, index) => {
+    if (!isRecord(source) || Array.isArray(source)) {
+      throw inputError(`sources[${index}] must be an object`);
+    }
+    assertOnlyKeys(source, ["title", "url"]);
+    assertKeysPresent(source, ["title", "url"]);
+    return {
+      title: requiredString(source.title, `sources[${index}].title`, { allowEmpty: false }),
+      url: requiredString(source.url, `sources[${index}].url`, { allowEmpty: false }),
+    };
+  });
 }
 
 function businessModelStreamColor(value: unknown): BusinessModelStreamColor {
@@ -374,4 +610,8 @@ function assertKeysPresent(value: Record<string, unknown>, required: string[]): 
 
 function inputError(message: string, details?: Record<string, unknown>): CliError {
   return new CliError("input_invalid", message, ExitCode.validation, details === undefined ? {} : { details });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

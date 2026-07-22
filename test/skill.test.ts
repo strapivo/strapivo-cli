@@ -6,6 +6,8 @@ import test from "node:test";
 import { CliError } from "../src/errors.js";
 import { installSkill, validateSkillHost } from "../src/skill.js";
 
+const bundledSkillPath = new URL("../../skills/strapivo/SKILL.md", import.meta.url);
+
 test("skill installer installs and updates Codex and Claude Code personal skills", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "strapivo-skill-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -79,6 +81,13 @@ test("all-host installation stages every host before changing either target", as
     (error: unknown) => error instanceof CliError && error.code === "skill_install_failed",
   );
   await assert.rejects(access(join(home, ".agents", "skills", "strapivo")));
+});
+
+test("bundled skill documents Business Model Environment write boundaries", async () => {
+  const skill = await readFile(bundledSkillPath, "utf8");
+  assert.match(skill, /same focus with `view=all` through every page/);
+  assert.match(skill, /Acceptance is browser-only/);
+  assert.match(skill, /Never retry Environment Item creation/);
 });
 
 test("skill host validation accepts agents alias and rejects unknown hosts", () => {

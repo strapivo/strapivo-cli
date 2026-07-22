@@ -20,6 +20,13 @@ import {
   validateBusinessModelElementArchiveInput,
   validateBusinessModelElementRejectInput,
   validateBusinessModelElementWriteInput,
+  validateBusinessModelEnvironmentFocus,
+  validateBusinessModelEnvironmentItemArchiveInput,
+  validateBusinessModelEnvironmentItemRejectInput,
+  validateBusinessModelEnvironmentItemWriteInput,
+  validateBusinessModelEnvironmentPage,
+  validateBusinessModelEnvironmentView,
+  validateBusinessModelEnvironmentWriteInput,
   validateBusinessModelStreamMembershipWriteInput,
   validateBusinessModelStreamWriteInput,
   validateBusinessModelWriteInput,
@@ -96,6 +103,10 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     (domain === "workspaces" && action === "list") ||
     (domain === "business-models" && action === "list") ||
     (domain === "business-model" && (action === "read" || action === "write")) ||
+    (domain === "business-model-environment" && (action === "read" || action === "write")) ||
+    (domain === "business-model-environment-items" && action === "list") ||
+    (domain === "business-model-environment-item" &&
+      (action === "read" || action === "write" || action === "archive" || action === "reject")) ||
     (domain === "business-model-element" &&
       (action === "read" || action === "write" || action === "archive" || action === "reject")) ||
     (domain === "business-model-stream" && action === "write") ||
@@ -143,6 +154,135 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     const input = validateBusinessModelWriteInput(await readJsonInput(inputPath, context.stdin));
     const api = await apiClient(context);
     writeJson(context.stdout, await api.writeBusinessModel(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-environment" && action === "read") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      "business-model-id": { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const businessModelId = identifier(
+      requiredOption(values, "business-model-id"),
+      "business_model_id",
+    );
+    const api = await apiClient(context);
+    writeJson(
+      context.stdout,
+      await api.readBusinessModelEnvironment(workspace, businessModelId),
+    );
+    return;
+  }
+
+  if (domain === "business-model-environment" && action === "write") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelEnvironmentWriteInput(
+      await readJsonInput(inputPath, context.stdin),
+    );
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.writeBusinessModelEnvironment(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-environment-items" && action === "list") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      "business-model-id": { type: "string" },
+      focus: { type: "string" },
+      view: { type: "string" },
+      page: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const businessModelId = identifier(
+      requiredOption(values, "business-model-id"),
+      "business_model_id",
+    );
+    const focus = validateBusinessModelEnvironmentFocus(requiredOption(values, "focus"));
+    const view = validateBusinessModelEnvironmentView(values.view ?? "foundation");
+    const page = validateBusinessModelEnvironmentPage(values.page ?? "1");
+    const api = await apiClient(context);
+    writeJson(
+      context.stdout,
+      await api.listBusinessModelEnvironmentItems(workspace, businessModelId, {
+        focus,
+        view,
+        page,
+      }),
+    );
+    return;
+  }
+
+  if (domain === "business-model-environment-item" && action === "read") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      "business-model-id": { type: "string" },
+      "environment-item-id": { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const businessModelId = identifier(
+      requiredOption(values, "business-model-id"),
+      "business_model_id",
+    );
+    const environmentItemId = identifier(
+      requiredOption(values, "environment-item-id"),
+      "environment_item_id",
+    );
+    const api = await apiClient(context);
+    writeJson(
+      context.stdout,
+      await api.readBusinessModelEnvironmentItem(workspace, businessModelId, environmentItemId),
+    );
+    return;
+  }
+
+  if (domain === "business-model-environment-item" && action === "write") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelEnvironmentItemWriteInput(
+      await readJsonInput(inputPath, context.stdin),
+    );
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.writeBusinessModelEnvironmentItem(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-environment-item" && action === "archive") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelEnvironmentItemArchiveInput(
+      await readJsonInput(inputPath, context.stdin),
+    );
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.archiveBusinessModelEnvironmentItem(workspace, input));
+    return;
+  }
+
+  if (domain === "business-model-environment-item" && action === "reject") {
+    const values = argumentsFor(rest, {
+      workspace: { type: "string" },
+      input: { type: "string" },
+    });
+    const workspace = requiredOption(values, "workspace");
+    const inputPath = requiredOption(values, "input");
+    const input = validateBusinessModelEnvironmentItemRejectInput(
+      await readJsonInput(inputPath, context.stdin),
+    );
+    const api = await apiClient(context);
+    writeJson(context.stdout, await api.rejectBusinessModelEnvironmentItem(workspace, input));
     return;
   }
 

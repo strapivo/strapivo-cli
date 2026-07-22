@@ -3,18 +3,19 @@ name: strapivo
 description: >-
   Read and maintain Strapivo Strategic Memory through the strapivo CLI. Use
   when a user asks about a Workspace, Business Model, Business Model Canvas,
-  Business Model Element, Business Model Stream, or saved strategic context
-  in Strapivo; when an agent needs Strapivo memory before reasoning; or when
-  asked to create or update Strapivo Business Models, Elements, or Streams.
+  Business Model Element, Business Model Stream, Business Model Environment,
+  Environment Item, or saved strategic context in Strapivo; when an agent
+  needs Strapivo memory before reasoning; or when asked to create or update
+  Strapivo Business Models, Elements, Streams, Environment scope, or Items.
 compatibility: Requires the strapivo CLI (@strapivo/cli), Node >=22, and configured Strapivo API access.
 metadata:
   author: strapivo
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Strapivo Strategic Memory
 
-Use `strapivo` as deterministic transport into Strapivo Strategic Memory. Current API surface covers Workspaces, Business Models, Business Model Elements, and Business Model Streams. CLI emits JSON only and never prompts.
+Use `strapivo` as deterministic transport into Strapivo Strategic Memory. Current API surface covers Workspaces, Business Models, Business Model Elements, Business Model Streams, Business Model Environments, and Environment Items. CLI emits JSON only and never prompts.
 
 ## Preflight
 
@@ -36,6 +37,7 @@ React to CLI output; do not pre-run checks every turn.
 - Require an explicit Workspace for every scoped operation.
 - Never guess a write target from names, prior sessions, or shell state.
 - Read selected Business Model before reasoning about or changing it.
+- Read the dedicated Business Model Environment endpoint immediately before changing Environment scope; the compact scope in a Business Model omits its lock version.
 - Treat all IDs as opaque strings.
 
 ## Writes
@@ -55,11 +57,17 @@ New Business Model Elements become `ai_drafted` and `proposed`. Updates preserve
 
 Read Streams through the complete Business Model document; there is no standalone Stream read. Stream metadata writes use the complete Stream fields and its latest `lock_version`. Membership writes use `stream_lock_version` and advance that Stream version, so use the returned Stream or reread the Business Model before another mutation. Never retry Stream creation automatically. If Strapivo reports that accepted Stream structure requires human approval, stop and surface that boundary; do not bypass it with another route or operation.
 
+Business Model Environment scope writes always send `geography`, `primary_market`, and the latest Environment `lock_version`; explicit null clears a scope field.
+
+Focused Environment Item reads return one page. Follow `total_pages`; if `more_items_beyond_page_limit` is true, report that the safe API limit was exceeded. Before every Environment Item create or update, read the same focus with `view=all` through every page. Update a matching open proposal, skip matching accepted knowledge, and create only when no current match exists. Archived matches are context but do not prevent a new proposal.
+
+Environment Item writes require the complete topic, title, details, and 1–3 public HTTP(S) sources. Only proposed `ai_drafted` items can be updated or rejected; only accepted items can be archived. Competitors cannot be reclassified as generic items or vice versa. Never retry Environment Item creation after an uncertain result; reread and reconcile first. Acceptance is browser-only and must remain a human action.
+
 Return operation, resource ID, status when present, and concise review handoff after writes.
 
 ## Current limits
 
-No Stream approval, general deletion, token management, bulk sync, or idempotent create operations. Stream deletion is not exposed. Do not use browser routes, HTML actions, or undocumented endpoints to bypass these limits.
+No Stream approval, Environment Item acceptance, general deletion, token management, bulk sync, or idempotent create operations. Stream deletion is not exposed. Do not use browser routes, HTML actions, or undocumented endpoints to bypass these limits.
 
 ## Errors
 

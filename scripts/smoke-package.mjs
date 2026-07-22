@@ -24,13 +24,20 @@ try {
 
   const version = runJson(cliPath, ["version"], environment);
   assert.equal(version.name, "@strapivo/cli");
-  assert.equal(version.version, "2.0.0");
-  assert.equal(version.api_contract, "1.2");
+  assert.equal(version.version, "2.1.0");
+  assert.equal(version.api_contract, "1.3");
 
   const usage = runJson(cliPath, ["usage"], environment);
   assert.equal(usage.name, "strapivo");
   assert.equal(typeof usage.commands["business-model-stream"], "string");
   assert.equal(typeof usage.commands["business-model-stream-membership"], "string");
+  assert.equal(typeof usage.commands["business-model-environment"], "string");
+  assert.equal(typeof usage.commands["business-model-environment-items"], "string");
+  assert.equal(typeof usage.commands["business-model-environment-item"], "string");
+
+  const environmentItemUsage = runJson(cliPath, ["business-model-environment-item", "usage"], environment);
+  assert.equal(typeof environmentItemUsage.commands.write, "object");
+  assert.equal(environmentItemUsage.commands.accept, undefined);
 
   const streamUsage = runJson(cliPath, ["business-model-stream", "usage"], environment);
   assert.equal(typeof streamUsage.commands.write, "object");

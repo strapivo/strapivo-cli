@@ -35,7 +35,7 @@ npm run api:check -- ../strapivo/docs/api/openapi.yaml
 
 Run this before accepting server API changes or releasing the CLI.
 
-This check validates OpenAPI compatibility only; it does not test a deployed server. After deployment, smoke-test the exact CLI release against staging using a disposable Workspace. Exercise authentication, reads, writes, Business Model Element archive/reject, optimistic-lock conflicts, and inaccessible Workspace errors.
+This check validates OpenAPI compatibility only; it does not test a deployed server. After deployment, smoke-test the exact CLI release against staging using a disposable Workspace. Exercise authentication, reads, writes, Business Model Element archive/reject, Business Model Environment scope read/update/null clearing, focused Environment Item pagination, Environment Item read/create/update/archive/reject, optimistic-lock conflicts, and inaccessible Workspace errors.
 
 Never expose API tokens in commands, logs, test fixtures, or committed files.
 

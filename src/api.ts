@@ -3,6 +3,11 @@ import type {
   BusinessModelElementArchiveInput,
   BusinessModelElementRejectInput,
   BusinessModelElementWriteInput,
+  BusinessModelEnvironmentItemArchiveInput,
+  BusinessModelEnvironmentItemRejectInput,
+  BusinessModelEnvironmentItemWriteInput,
+  BusinessModelEnvironmentListOptions,
+  BusinessModelEnvironmentWriteInput,
   BusinessModelStreamMembershipWriteInput,
   BusinessModelStreamWriteInput,
   BusinessModelWriteInput,
@@ -75,11 +80,16 @@ export class ApiClient {
     const businessModelId = input.business_model_id;
     const creating = businessModelId === null;
     const response = businessModelId === null
-      ? await this.request("POST", collectionUrl, {
-          name: input.name,
-          url: input.url,
-          context_notes: input.context_notes,
-        })
+      ? await this.request(
+          "POST",
+          collectionUrl,
+          {
+            name: input.name,
+            url: input.url,
+            context_notes: input.context_notes,
+          },
+          { safeToRetryTransport: false },
+        )
       : await this.request("PATCH", memberUrl(collectionUrl, businessModelId), {
           lock_version: input.lock_version,
           name: input.name,
@@ -95,6 +105,145 @@ export class ApiClient {
       url: nullableResponseField(document, "url"),
       context_notes: nullableResponseField(document, "context_notes"),
       lock_version: requiredResponseField(document, "lock_version"),
+    };
+  }
+
+  async readBusinessModelEnvironment(
+    workspaceSlug: string,
+    businessModelId: string,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), businessModelId);
+    const response = await this.request("GET", businessModelEnvironmentUrl(modelUrl));
+    return responseRecord(response, "Business Model Environment response");
+  }
+
+  async writeBusinessModelEnvironment(
+    workspaceSlug: string,
+    input: BusinessModelEnvironmentWriteInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const response = await this.request("PATCH", businessModelEnvironmentUrl(modelUrl), {
+      lock_version: input.lock_version,
+      geography: input.geography,
+      primary_market: input.primary_market,
+    });
+    const document = responseRecord(response, "Business Model Environment write response");
+    return {
+      operation: "updated",
+      business_model_id: input.business_model_id,
+      scope: {
+        geography: requiredResponseField(document, "geography"),
+        primary_market: requiredResponseField(document, "primary_market"),
+        lock_version: requiredResponseField(document, "lock_version"),
+      },
+    };
+  }
+
+  async listBusinessModelEnvironmentItems(
+    workspaceSlug: string,
+    businessModelId: string,
+    options: BusinessModelEnvironmentListOptions,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), businessModelId);
+    const url = businessModelEnvironmentItemsCollectionUrl(modelUrl);
+    url.searchParams.set("focus", options.focus);
+    url.searchParams.set("view", options.view);
+    url.searchParams.set("page", String(options.page));
+    const response = await this.request("GET", url);
+    return responseRecord(response, "Business Model Environment Item collection response");
+  }
+
+  async readBusinessModelEnvironmentItem(
+    workspaceSlug: string,
+    businessModelId: string,
+    environmentItemId: string,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), businessModelId);
+    const response = await this.request(
+      "GET",
+      businessModelEnvironmentItemUrl(modelUrl, environmentItemId),
+    );
+    return responseRecord(response, "Business Model Environment Item response");
+  }
+
+  async writeBusinessModelEnvironmentItem(
+    workspaceSlug: string,
+    input: BusinessModelEnvironmentItemWriteInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const environmentItemId = input.environment_item_id;
+    const creating = environmentItemId === null;
+    const mutablePayload = {
+      topic: input.topic,
+      title: input.title,
+      details: input.details,
+      sources: input.sources,
+    };
+    const response = environmentItemId === null
+      ? await this.request(
+          "POST",
+          businessModelEnvironmentItemsCollectionUrl(modelUrl),
+          mutablePayload,
+          { safeToRetryTransport: false },
+        )
+      : await this.request(
+          "PATCH",
+          businessModelEnvironmentItemUrl(modelUrl, environmentItemId),
+          { lock_version: input.lock_version, ...mutablePayload },
+        );
+
+    return environmentItemWriteResult(
+      response,
+      creating ? "created" : "updated",
+      input.business_model_id,
+    );
+  }
+
+  async archiveBusinessModelEnvironmentItem(
+    workspaceSlug: string,
+    input: BusinessModelEnvironmentItemArchiveInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const url = businessModelEnvironmentItemLifecycleUrl(
+      modelUrl,
+      input.environment_item_id,
+      "archival",
+    );
+    await this.request(
+      "POST",
+      url,
+      { lock_version: input.lock_version, archive_reason: input.archive_reason },
+      { allowEmptySuccess: true },
+    );
+    return {
+      operation: "archived",
+      business_model_id: input.business_model_id,
+      environment_item_id: input.environment_item_id,
+    };
+  }
+
+  async rejectBusinessModelEnvironmentItem(
+    workspaceSlug: string,
+    input: BusinessModelEnvironmentItemRejectInput,
+  ): Promise<Record<string, unknown>> {
+    const workspace = await this.resolveWorkspace(workspaceSlug);
+    const modelUrl = memberUrl(this.workspaceBusinessModelsUrl(workspace), input.business_model_id);
+    const url = businessModelEnvironmentItemLifecycleUrl(
+      modelUrl,
+      input.environment_item_id,
+      "rejection",
+    );
+    await this.request("DELETE", url, { lock_version: input.lock_version }, { allowEmptySuccess: true });
+    return {
+      operation: "rejected",
+      business_model_id: input.business_model_id,
+      environment_item_id: input.environment_item_id,
     };
   }
 
@@ -118,13 +267,18 @@ export class ApiClient {
     const elementId = input.element_id;
     const creating = elementId === null;
     const response = elementId === null
-      ? await this.request("POST", elementsCollectionUrl(modelUrl), {
-          block: input.block,
-          parent_id: input.parent_id,
-          child_type: input.child_type,
-          title: input.title,
-          details: input.details,
-        })
+      ? await this.request(
+          "POST",
+          elementsCollectionUrl(modelUrl),
+          {
+            block: input.block,
+            parent_id: input.parent_id,
+            child_type: input.child_type,
+            title: input.title,
+            details: input.details,
+          },
+          { safeToRetryTransport: false },
+        )
       : await this.request("PATCH", elementMemberUrl(modelUrl, elementId), {
           block: input.block,
           lock_version: input.lock_version,
@@ -188,12 +342,17 @@ export class ApiClient {
     const streamId = input.stream_id;
     const creating = streamId === null;
     const response = streamId === null
-      ? await this.request("POST", collectionUrl, {
-          name: input.name,
-          details: input.details,
-          color: input.color,
-          position: input.position,
-        })
+      ? await this.request(
+          "POST",
+          collectionUrl,
+          {
+            name: input.name,
+            details: input.details,
+            color: input.color,
+            position: input.position,
+          },
+          { safeToRetryTransport: false },
+        )
       : await this.request("PATCH", memberUrl(collectionUrl, streamId), {
           lock_version: input.lock_version,
           name: input.name,
@@ -260,7 +419,7 @@ export class ApiClient {
     method: string,
     url: URL,
     body?: Record<string, unknown>,
-    options: { allowEmptySuccess?: boolean } = {},
+    options: { allowEmptySuccess?: boolean; safeToRetryTransport?: boolean } = {},
   ): Promise<unknown> {
     this.assertSameOrigin(url);
     const headers: Record<string, string> = {
@@ -286,7 +445,7 @@ export class ApiClient {
         timedOut ? "request_timeout" : "transport_error",
         timedOut ? `Request timed out after ${this.timeoutMilliseconds}ms` : "Could not reach Strapivo",
         ExitCode.transport,
-        { retryable: true, cause: error },
+        { retryable: options.safeToRetryTransport !== false, cause: error },
       );
     }
 
@@ -320,7 +479,7 @@ export class ApiClient {
         timedOut ? "request_timeout" : "transport_error",
         timedOut ? `Request timed out after ${this.timeoutMilliseconds}ms` : "Connection failed while reading Strapivo response",
         ExitCode.transport,
-        { retryable: true, cause: error },
+        { retryable: options.safeToRetryTransport !== false, cause: error },
       );
     }
     const parsed = parseResponseBody(text, response.ok, options.allowEmptySuccess === true);
@@ -348,6 +507,28 @@ function memberUrl(collectionUrl: URL, id: string): URL {
   url.pathname = `${collectionPath}/${encodeURIComponent(id)}.json`;
   url.search = "";
   url.hash = "";
+  return url;
+}
+
+function businessModelEnvironmentUrl(businessModelUrl: URL): URL {
+  return nestedCollectionUrl(businessModelUrl, "environment");
+}
+
+function businessModelEnvironmentItemsCollectionUrl(businessModelUrl: URL): URL {
+  return nestedCollectionUrl(businessModelUrl, "environment_items");
+}
+
+function businessModelEnvironmentItemUrl(businessModelUrl: URL, environmentItemId: string): URL {
+  return memberUrl(businessModelEnvironmentItemsCollectionUrl(businessModelUrl), environmentItemId);
+}
+
+function businessModelEnvironmentItemLifecycleUrl(
+  businessModelUrl: URL,
+  environmentItemId: string,
+  lifecycle: "archival" | "rejection",
+): URL {
+  const url = businessModelEnvironmentItemUrl(businessModelUrl, environmentItemId);
+  url.pathname = `${url.pathname.slice(0, -5)}/${lifecycle}.json`;
   return url;
 }
 
@@ -466,6 +647,25 @@ function requiredResponseField(document: Record<string, unknown>, field: string)
 function nullableResponseField(document: Record<string, unknown>, field: string): unknown {
   if (!Object.hasOwn(document, field)) throw incompatible(`Response is missing field '${field}'`);
   return document[field];
+}
+
+function environmentItemWriteResult(
+  response: unknown,
+  operation: string,
+  businessModelId: string,
+): Record<string, unknown> {
+  const document = responseRecord(response, "Business Model Environment Item write response");
+  return {
+    operation,
+    business_model_id: businessModelId,
+    id: requiredResponseField(document, "id"),
+    kind: requiredResponseField(document, "kind"),
+    topic: requiredResponseField(document, "topic"),
+    status: requiredResponseField(document, "status"),
+    origin: requiredResponseField(document, "origin"),
+    position: requiredResponseField(document, "position"),
+    lock_version: requiredResponseField(document, "lock_version"),
+  };
 }
 
 function streamWriteResult(response: unknown, operation: string): Record<string, unknown> {
